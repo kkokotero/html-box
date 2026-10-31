@@ -1,0 +1,68 @@
+{
+	"name": "html-tools",
+	"version": "0.2.1",
+	"private": false,
+	"description": "Expressive JavaScript and TypeScript utilities for working with the DOM",
+	"keywords": [
+		"dom",
+		"dom-query",
+		"html",
+		"query",
+		"typescript"
+	],
+	"homepage": "https://github.com/kkokotero/html-tools#readme",
+	"bugs": {
+		"url": "https://github.com/kkokotero/html-tools/issues"
+	},
+	"license": "MIT",
+	"author": {
+		"name": "kkoko",
+		"email": "is.kkokotero@gmail.com",
+		"url": "https://github.com/kkokotero"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/kkokotero/html-tools.git"
+	},
+	"files": [
+		"dist",
+		"misc",
+		"LICENSE",
+		"README.md"
+	],
+	"type": "module",
+	"sideEffects": false,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
+	"scripts": {
+		"build": "tsdown",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"lint": "oxlint .",
+		"lint:fix": "oxlint --fix .",
+		"format": "oxfmt .",
+		"format:check": "oxfmt --check .",
+		"check": "npm run typecheck && npm run lint && npm run format:check"
+	},
+	"devDependencies": {
+		"@types/node": "^22.15.0",
+		"oxfmt": "^0.75.0",
+		"oxlint": "^1.90.0",
+		"tsdown": "^0.23.4",
+		"typescript": "^7.0.2",
+		"vitest": "^3.2.7"
+	},
+	"engines": {
+		"node": ">=18"
+	}
+}
