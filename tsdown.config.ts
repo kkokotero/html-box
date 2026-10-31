@@ -11,6 +11,7 @@ export default defineConfig({
 		keyboard: "src/keyboard/index.ts",
 		scheduler: "src/scheduler/index.ts",
 		element: "src/element/index.ts",
+		form: "src/form/index.ts",
 	},
 	target: "esnext",
 	format: ["esm"],

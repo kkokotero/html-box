@@ -72,6 +72,10 @@
 		"./element": {
 			"types": "./dist/element.d.ts",
 			"default": "./dist/element.js"
+		},
+		"./form": {
+			"types": "./dist/form.d.ts",
+			"default": "./dist/form.js"
 		}
 	},
 	"publishConfig": {

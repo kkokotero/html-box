@@ -22,7 +22,7 @@
 
 **Expressive JavaScript and TypeScript utilities for working with the DOM.**
 
-HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Element API for common element operations, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, the SafeZone API for geometric interaction zones, the Viewport API for element geometry and visibility monitoring, the Keyboard API for typed keyboard shortcuts, and the Scheduler API for cancelable timers and animation frames.
+HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Element API for common element operations, the Form API for native form data handling, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, the SafeZone API for geometric interaction zones, the Viewport API for element geometry and visibility monitoring, the Keyboard API for typed keyboard shortcuts, and the Scheduler API for cancelable timers and animation frames.
 
 ## Installation
 
@@ -36,6 +36,7 @@ Import each API from its package subpath. The package exposes only these modular
 
 ```ts
 import { Element } from "html-tools/element";
+import { Form } from "html-tools/form";
 import { html, createHtml, unsafeHtml } from "html-tools/html";
 import { Interaction } from "html-tools/interaction";
 import { Keyboard } from "html-tools/keyboard";
@@ -46,17 +47,18 @@ import { Scheduler } from "html-tools/scheduler";
 import { Viewport } from "html-tools/viewport";
 ```
 
-| Import path              | Module                        |
-| ------------------------ | ----------------------------- |
-| `html-tools/query`       | Query utilities               |
-| `html-tools/interaction` | Native events and gestures    |
-| `html-tools/pointer`     | Pointer tracking              |
-| `html-tools/html`        | HTML template rendering       |
-| `html-tools/safe-zone`   | Geometric interaction zones   |
-| `html-tools/viewport`    | Element geometry monitoring   |
-| `html-tools/keyboard`    | Typed keyboard shortcuts      |
-| `html-tools/scheduler`   | Cancelable timers and frames  |
-| `html-tools/element`     | Common DOM element operations |
+| Import path              | Module                           |
+| ------------------------ | -------------------------------- |
+| `html-tools/query`       | Query utilities                  |
+| `html-tools/interaction` | Native events and gestures       |
+| `html-tools/pointer`     | Pointer tracking                 |
+| `html-tools/html`        | HTML template rendering          |
+| `html-tools/safe-zone`   | Geometric interaction zones      |
+| `html-tools/viewport`    | Element geometry monitoring      |
+| `html-tools/keyboard`    | Typed keyboard shortcuts         |
+| `html-tools/scheduler`   | Cancelable timers and frames     |
+| `html-tools/element`     | Common DOM element operations    |
+| `html-tools/form`        | Form data reading and validation |
 
 ## Query API
 
@@ -185,6 +187,34 @@ Element.remove(copy);
 | `empty(element)`                     | Removes all child nodes and returns the element                     |
 | `contains(parent, node)`             | Checks containment, including when both arguments are the same node |
 | `setAttributes(element, attributes)` | Sets, toggles, or removes regular and namespaced attributes         |
+
+## Form API
+
+`Form` wraps common native form operations. `values` returns successful controls grouped by name, using arrays for repeated names. Disabled controls and unchecked checkboxes or radio buttons are omitted, while file inputs keep their `File` values. `validate` uses native constraint validation, and `serialize` returns `URLSearchParams` while representing file inputs by filename.
+
+```ts
+import { Form } from "html-tools/form";
+
+const form = document.querySelector("form");
+
+if (form) {
+	const values = Form.values(form);
+	const query = Form.serialize(form);
+	const valid = Form.validate(form);
+
+	if (!valid) Form.validate(form, true);
+	Form.reset(form);
+}
+```
+
+Use `new FormData(form)` when a request must include file contents; URL-encoded serialization can only include their filenames.
+
+| API                       | Result                                                             |
+| ------------------------- | ------------------------------------------------------------------ |
+| `values(form)`            | Successful control values grouped by name                          |
+| `reset(form)`             | Resets controls to defaults and returns the form                   |
+| `validate(form, report?)` | Returns native validity; optionally displays browser validation UI |
+| `serialize(form)`         | `URLSearchParams` with repeated names preserved                    |
 
 ## Interaction API
 
