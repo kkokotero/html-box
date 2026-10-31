@@ -18,8 +18,8 @@ npm install html-box
 
 ## Modules
 
-| Import                   | What it helps with                               |
-| ------------------------ | ------------------------------------------------ |
+| Import                 | What it helps with                               |
+| ---------------------- | ------------------------------------------------ |
 | `html-box/query`       | Find and scope DOM queries                       |
 | `html-box/element`     | Create and manipulate HTML and SVG elements      |
 | `html-box/form`        | Read, reset, validate, and serialize forms       |
