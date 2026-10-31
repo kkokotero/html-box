@@ -22,7 +22,7 @@
 
 **Expressive JavaScript and TypeScript utilities for working with the DOM.**
 
-HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, the SafeZone API for geometric interaction zones, the Viewport API for element geometry and visibility monitoring, and the Keyboard API for typed keyboard shortcuts.
+HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, the SafeZone API for geometric interaction zones, the Viewport API for element geometry and visibility monitoring, the Keyboard API for typed keyboard shortcuts, and the Scheduler API for cancelable timers and animation frames.
 
 ## Installation
 
@@ -41,18 +41,20 @@ import { Keyboard } from "html-tools/keyboard";
 import { Pointer } from "html-tools/pointer";
 import { Query, hasDocument } from "html-tools/query";
 import { SafeZone } from "html-tools/safe-zone";
+import { Scheduler } from "html-tools/scheduler";
 import { Viewport } from "html-tools/viewport";
 ```
 
-| Import path              | Module                      |
-| ------------------------ | --------------------------- |
-| `html-tools/query`       | Query utilities             |
-| `html-tools/interaction` | Native events and gestures  |
-| `html-tools/pointer`     | Pointer tracking            |
-| `html-tools/html`        | HTML template rendering     |
-| `html-tools/safe-zone`   | Geometric interaction zones |
-| `html-tools/viewport`    | Element geometry monitoring |
-| `html-tools/keyboard`    | Typed keyboard shortcuts    |
+| Import path              | Module                       |
+| ------------------------ | ---------------------------- |
+| `html-tools/query`       | Query utilities              |
+| `html-tools/interaction` | Native events and gestures   |
+| `html-tools/pointer`     | Pointer tracking             |
+| `html-tools/html`        | HTML template rendering      |
+| `html-tools/safe-zone`   | Geometric interaction zones  |
+| `html-tools/viewport`    | Element geometry monitoring  |
+| `html-tools/keyboard`    | Typed keyboard shortcuts     |
+| `html-tools/scheduler`   | Cancelable timers and frames |
 
 ## Query API
 
@@ -511,6 +513,42 @@ By default, shortcuts require an exact modifier match and ignore most printable 
 | `close()`                                       | Removes all listeners and shortcuts              |
 | `pause()` / `resume()`                          | Suspends or restores native keyboard dispatch    |
 | `KeyboardError` / `KeyboardErrorCode`           | Error class and machine-readable error enum      |
+
+## Scheduler API
+
+`Scheduler` creates cancelable timers and animation frame tasks, and provides debounced, throttled, and repeating callbacks. Timer, frame, and repeat handles expose `cancel()` and a `canceled` state. Debounced and throttled functions can be called directly or through `.call()`; they also expose `cancel()`, `flush()`, and `canceled`.
+
+```ts
+import { Scheduler } from "html-tools/scheduler";
+
+const search = Scheduler.debounce((query: string) => runSearch(query), 300);
+search.call("keyboard shortcuts");
+search.cancel();
+
+const scroll = Scheduler.throttle(() => updatePosition(), 100);
+window.addEventListener("scroll", scroll);
+
+const wait = Scheduler.delay(1000, () => showMessage());
+wait.cancel();
+
+const frame = Scheduler.raf((time) => render(time));
+const afterPaint = Scheduler.nextFrame(() => measureLayout());
+
+const interval = Scheduler.repeat(() => refresh(), 5000);
+interval.pause();
+interval.resume();
+interval.cancel();
+```
+
+`delay(wait)` can also be used without a callback when only a cancelable wait is needed. `repeat(callback, interval, { immediate: true })` invokes once immediately and then on each interval. `raf` falls back to a short timer when animation frame APIs are unavailable.
+
+| API                                     | Result                                                                                           |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `debounce(callback, wait)`              | Callable task that runs after calls stop, with `cancel()` and `flush()`                          |
+| `throttle(callback, wait)`              | Callable task that runs immediately and at most once per interval, with `cancel()` and `flush()` |
+| `delay(wait, callback?)`                | Cancelable one-shot timer with a promise that resolves on completion or cancellation             |
+| `raf(callback)` / `nextFrame(callback)` | Cancelable animation frame / after-paint task                                                    |
+| `repeat(callback, interval, options?)`  | Cancelable repeating task with `pause()` and `resume()`                                          |
 
 ## Design Principles
 

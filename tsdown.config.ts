@@ -9,6 +9,7 @@ export default defineConfig({
 		"safe-zone": "src/safe-zone/index.ts",
 		viewport: "src/viewport/index.ts",
 		keyboard: "src/keyboard/index.ts",
+		scheduler: "src/scheduler/index.ts",
 	},
 	target: "esnext",
 	format: ["esm"],

@@ -64,6 +64,10 @@
 		"./keyboard": {
 			"types": "./dist/keyboard.d.ts",
 			"default": "./dist/keyboard.js"
+		},
+		"./scheduler": {
+			"types": "./dist/scheduler.d.ts",
+			"default": "./dist/scheduler.js"
 		}
 	},
 	"publishConfig": {
