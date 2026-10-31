@@ -204,6 +204,8 @@ HTML Tools ships TypeScript declarations. Tag-based queries, HTML and SVG creati
 
 ## Contributing
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community expectations, and [SECURITY.md](SECURITY.md) to report a vulnerability privately.
+
 ```bash
 npm run check
 npm test
