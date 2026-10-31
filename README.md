@@ -243,6 +243,84 @@ controller.abort(); // closes the interaction and removes remaining listeners
 | `emit(name, detail?, init?)`    | Dispatches a typed `CustomEvent` from the target          |
 | `close()`                       | Cancels all listeners and marks the interaction as closed |
 
+## Pointer API
+
+`Pointer` tracks Pointer Events on one element and provides typed samples with viewport, document, and element-local coordinates. Samples also include movement, displacement, pressure, button state, and pointer type. The API supports mouse, pen, and touch input.
+
+### Tracking pointer events
+
+```ts
+import { Pointer } from "html-tools";
+
+const canvas = document.querySelector("canvas");
+
+if (canvas) {
+	const pointer = new Pointer(canvas);
+
+	pointer.on("move", ({ x, y, localX, localY, deltaX, deltaY }) => {
+		console.log({ x, y, localX, localY, deltaX, deltaY });
+	});
+
+	pointer.on("down", ({ pointerType, pressure }) => {
+		console.log(pointerType, pressure);
+	});
+
+	pointer.close();
+}
+```
+
+The supported event names are `enter`, `leave`, `down`, `up`, `move`, and `cancel`. Each `on` or `once` registration returns a subscription with `cancel()`. Listener options support `once` and `AbortSignal`; `off()` removes listeners by event name, optionally matching a specific handler.
+
+### Pointer state and capture
+
+`position` returns the latest primary pointer position or `null` when no position is available. `pointers` lists active pointers, and `pressed` indicates whether any tracked pointer is down. With capture enabled, a pressed pointer continues generating events after it leaves the target; you can also manage capture with `capture()`, `release()`, and `hasCapture()`.
+
+```ts
+const pointer = new Pointer(canvas, {
+	primaryOnly: false,
+	types: ["pen", "touch"],
+	capture: true,
+	touchAction: "none",
+});
+
+console.log(pointer.position?.ratioX, pointer.pointers.length);
+```
+
+`primaryOnly` defaults to `true`, and `types` defaults to all pointer kinds. `touchAction` temporarily sets the target's CSS `touch-action` value and restores the previous value when the instance closes.
+
+### Proximity
+
+Use `proximity()` to measure the current pointer against one element, or `nearest()` to find the closest candidate. Both return `null` if no pointer position is available. The default metric measures distance to the nearest edge with a radius of `0` pixels; use `metric: "center"` or a larger radius to change the measurement.
+
+```ts
+const result = pointer.proximity(document.querySelector(".drop-zone"), {
+	radius: 48,
+	metric: "edge",
+});
+
+if (result?.near) {
+	console.log(result.element, result.distance, result.ratio);
+}
+
+const closest = pointer.nearest(document.querySelectorAll("[data-target]"), {
+	metric: "center",
+});
+```
+
+### Cleanup
+
+`close()` removes DOM listeners, releases captures, restores `touch-action`, cancels subscriptions, and clears tracked state. It is safe to call more than once. An instance created with a `null` or `undefined` target is inert, and an `AbortSignal` can close the instance automatically.
+
+| Member | Result |
+| --- | --- |
+| `on(name, handler, options?)` / `once(name, handler, options?)` | Subscribe to typed pointer samples |
+| `off(name, handler?)` | Remove listeners for an event |
+| `position` / `pointers` / `pressed` | Read current pointer state |
+| `capture(id?)` / `release(id?)` / `hasCapture(id?)` | Manage pointer capture |
+| `proximity(element, options?)` / `nearest(elements, options?)` | Measure pointer proximity |
+| `listenerCount(name?)` | Count active listeners |
+| `close()` | Remove listeners and release owned resources |
+
 ## Design Principles
 
 HTML Tools is built around a few core principles:
