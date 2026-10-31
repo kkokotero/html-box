@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { Query, QueryError, QueryErrorCode } from "../src";
+import { Query, QueryError, QueryErrorCode } from "../src/query";
 
 const FIXTURE = `
 	<main id="app">

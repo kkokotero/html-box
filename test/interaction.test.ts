@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Interaction, InteractionError, InteractionErrorCode } from "../src";
+import {
+	Interaction,
+	InteractionError,
+	InteractionErrorCode,
+} from "../src/interaction";
 
 const createInvalidInteraction = () =>
 	new Interaction(null as unknown as EventTarget);

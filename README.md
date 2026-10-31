@@ -22,7 +22,7 @@
 
 **Expressive JavaScript and TypeScript utilities for working with the DOM.**
 
-HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, and the SafeZone API for geometric interaction zones.
+HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, the SafeZone API for geometric interaction zones, and the Viewport API for element geometry and visibility monitoring.
 
 ## Installation
 
@@ -40,6 +40,7 @@ import { Interaction } from "html-tools/interaction";
 import { Pointer } from "html-tools/pointer";
 import { Query, hasDocument } from "html-tools/query";
 import { SafeZone } from "html-tools/safe-zone";
+import { Viewport } from "html-tools/viewport";
 ```
 
 | Import path              | Module                      |
@@ -49,6 +50,7 @@ import { SafeZone } from "html-tools/safe-zone";
 | `html-tools/pointer`     | Pointer tracking            |
 | `html-tools/html`        | HTML template rendering     |
 | `html-tools/safe-zone`   | Geometric interaction zones |
+| `html-tools/viewport`    | Element geometry monitoring |
 
 ## Query API
 
@@ -418,6 +420,46 @@ The zone starts observing only while it has listeners or a visualization overlay
 | `close()`                                                       | Removes listeners, observers, overlay, and subscriptions |
 | `SafeZoneError` / `SafeZoneErrorCode`                           | Error class and machine-readable error enum              |
 
+## Viewport API
+
+`Viewport` reads an element's current visual size and position and reports its movement and visibility. Measurements use `getBoundingClientRect()`, so CSS transforms are included. `IntersectionObserver` provides visibility updates when available; otherwise, the module estimates intersection with the viewport synchronously.
+
+```ts
+import { Viewport } from "html-tools/viewport";
+
+const viewport = new Viewport(document.querySelector("main"), {
+	threshold: 0.25,
+	rootMargin: "100px",
+});
+
+console.log(viewport.size, viewport.position, viewport.visible);
+
+viewport.on("resize", ({ size, previous }) => {
+	console.log("size changed", previous, size);
+});
+
+viewport.on("move", ({ position, deltaX, deltaY, cause }) => {
+	console.log("element moved", position, deltaX, deltaY, cause);
+});
+
+viewport.on("enter", ({ ratio, side }) => console.log("entered", ratio, side));
+viewport.on("leave", ({ ratio, side }) => console.log("left", ratio, side));
+
+viewport.close();
+```
+
+`move` events are coalesced to at most one check per animation frame and are triggered by relevant scroll, window resize, or element resize events. Use `poll: true` or call `update()` to detect position changes caused by transforms or animations that do not trigger browser events. Event-specific observers and listeners are active only while relevant subscriptions exist. `AbortSignal` can close the instance or cancel individual subscriptions.
+
+| API                                                             | Result                                              |
+| --------------------------------------------------------------- | --------------------------------------------------- |
+| `new Viewport(element, options?)`                               | Creates a viewport monitor                          |
+| `size` / `position` / `visible` / `ratio`                       | Reads current element geometry and visibility       |
+| `snapshot()` / `update()`                                       | Reads all values or checks for changes immediately  |
+| `on(name, handler, options?)` / `once(name, handler, options?)` | Subscribes to `resize`, `move`, `enter`, or `leave` |
+| `off(name, handler?)` / `listenerCount(name?)`                  | Removes or counts event subscriptions               |
+| `close()`                                                       | Disconnects observers and cancels subscriptions     |
+| `ViewportError` / `ViewportErrorCode`                           | Error class and machine-readable error enum         |
+
 ## Design Principles
 
 HTML Tools is built around a few core principles:
@@ -443,6 +485,8 @@ The HTML API uses inert `<template>` parsing, DOM node creation, `addEventListen
 
 The SafeZone API uses element geometry, `requestAnimationFrame`, `ResizeObserver`, pointer events, and SVG for its optional overlay.
 
+The Viewport API uses element geometry, `IntersectionObserver`, `ResizeObserver`, scroll events, and `requestAnimationFrame`.
+
 ## TypeScript Support
 
 HTML Tools is written in TypeScript and ships with generated `.d.ts` declarations.
@@ -456,6 +500,8 @@ The Pointer API provides typed pointer samples and device-specific pointer kinds
 The HTML API exposes typed template options, event handlers, and `HtmlErrorCode` values.
 
 The SafeZone API exposes typed sources, geometry, options, event payloads, and `SafeZoneErrorCode` values.
+
+The Viewport API exposes typed measurements, event payloads, options, and `ViewportErrorCode` values.
 
 ## Contributing
 

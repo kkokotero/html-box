@@ -7,6 +7,7 @@ export default defineConfig({
 		pointer: "src/pointer/index.ts",
 		html: "src/html/index.ts",
 		"safe-zone": "src/safe-zone/index.ts",
+		viewport: "src/viewport/index.ts",
 	},
 	target: "esnext",
 	format: ["esm"],

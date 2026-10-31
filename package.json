@@ -55,6 +55,10 @@
 		"./safe-zone": {
 			"types": "./dist/safe-zone.d.ts",
 			"default": "./dist/safe-zone.js"
+		},
+		"./viewport": {
+			"types": "./dist/viewport.d.ts",
+			"default": "./dist/viewport.js"
 		}
 	},
 	"publishConfig": {
