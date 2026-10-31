@@ -488,8 +488,8 @@ export class Pointer<T extends Element = Element> {
 		}
 		this.restoreTouchAction();
 
-		for (const entries of [...this.entries.values()]) {
-			for (const entry of [...entries]) entry.cancel();
+		for (const entries of this.entries.values()) {
+			for (const entry of entries) entry.cancel();
 		}
 		this.entries.clear();
 		this.tracks.clear();
@@ -673,7 +673,7 @@ export class Pointer<T extends Element = Element> {
 
 		const entries = this.entries.get(type);
 		if (entries) {
-			for (const entry of [...entries]) entry.run(sample);
+			for (const entry of entries) entry.run(sample);
 		}
 
 		if (type === "leave") {

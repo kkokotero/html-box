@@ -152,9 +152,7 @@ export function normalizeRadius(radius: number | undefined): number {
  * @returns `"edge"` or `"center"`.
  * @throws {PointerError} If the metric is not supported.
  */
-export function normalizeProximityMetric(
-	metric: unknown,
-): "edge" | "center" {
+export function normalizeProximityMetric(metric: unknown): "edge" | "center" {
 	if (metric === undefined) return "edge";
 	if (metric !== "edge" && metric !== "center") {
 		throw new PointerError(
@@ -255,10 +253,7 @@ export function releasePointerCapture(
  * @param pointerId - Pointer identifier.
  * @returns `true` when the element has the capture.
  */
-export function hasPointerCapture(
-	target: Element,
-	pointerId: number,
-): boolean {
+export function hasPointerCapture(target: Element, pointerId: number): boolean {
 	try {
 		return target.hasPointerCapture(pointerId);
 	} catch {

@@ -3,16 +3,15 @@ import type { PointerDisposer, PointerEventName } from "./types";
 /**
  * Maps public pointer event names to native pointer event types.
  */
-export const NATIVE_POINTER_EVENTS: Readonly<
-	Record<PointerEventName, string>
-> = {
-	enter: "pointerenter",
-	leave: "pointerleave",
-	down: "pointerdown",
-	up: "pointerup",
-	move: "pointermove",
-	cancel: "pointercancel",
-};
+export const NATIVE_POINTER_EVENTS: Readonly<Record<PointerEventName, string>> =
+	{
+		enter: "pointerenter",
+		leave: "pointerleave",
+		down: "pointerdown",
+		up: "pointerup",
+		move: "pointermove",
+		cancel: "pointercancel",
+	};
 
 /**
  * Supported public pointer event names.

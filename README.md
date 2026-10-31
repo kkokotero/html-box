@@ -22,7 +22,7 @@
 
 **Expressive JavaScript and TypeScript utilities for working with the DOM.**
 
-HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups and the Interaction API for native events, delegated listeners, and built-in gestures.
+HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Interaction API for native events and gestures, the Pointer API for pointer tracking, and the HTML API for secure template rendering.
 
 ## Installation
 
@@ -243,6 +243,46 @@ controller.abort(); // closes the interaction and removes remaining listeners
 | `emit(name, detail?, init?)`    | Dispatches a typed `CustomEvent` from the target          |
 | `close()`                       | Cancels all listeners and marks the interaction as closed |
 
+## HTML API
+
+The `html` template tag renders a static HTML template with typed bindings for child content, attributes, properties, booleans, and events. Dynamic strings are inserted as text nodes by default. Use `html.fragment` for multiple roots, or `createHtml` to share an `AbortSignal` across event listeners.
+
+```ts
+import { createHtml, html, unsafeHtml } from "html-tools";
+
+const title = "Welcome";
+const button = html`
+	<button
+		class="button ${"primary"}"
+		?disabled=${false}
+		.value=${title}
+		@click.once=${(event) => console.log(event.currentTarget)}
+	>
+		${title}
+	</button>
+`;
+
+const nodes = html.fragment`<h1>${title}</h1>
+	<p>Ready</p>`;
+const trusted = html`<section>
+	${unsafeHtml("<strong>Trusted markup</strong>")}
+</section>`;
+```
+
+Child bindings accept strings, numbers, bigints, DOM nodes, iterables of supported values, `null`, `undefined`, and booleans. Ordinary strings are always text. `unsafeHtml(markup)` explicitly opts into parsing trusted markup and must never receive untrusted user content.
+
+Standard attributes accept primitive values; `null` and `undefined` remove a whole-value attribute. Use `?attribute=${condition}` for boolean attributes and `.property=${value}` for DOM property bindings. Event bindings use `@event=${handler}` and support `.once`, `.capture`, `.passive`, `.prevent`, and `.stop` modifiers. A handler may be a function or an `EventListenerObject`.
+
+The compiler rejects interpolations in tag or attribute names, comments, and raw-text elements. It also blocks `<script>`, inline `on*` attributes, `srcdoc`, dangerous property bindings, and unsafe URL schemes. Each render creates new nodes; this is a one-time renderer, not a reactive update system.
+
+| API                           | Result                                                |
+| ----------------------------- | ----------------------------------------------------- |
+| `html\`...\``                 | Renders one root element                              |
+| `html.fragment\`...\``        | Renders a `DocumentFragment` with any number of roots |
+| `createHtml({ signal? })`     | Creates a tag with shared event-listener cleanup      |
+| `unsafeHtml(markup)`          | Explicitly marks trusted markup for raw insertion     |
+| `HtmlError` / `HtmlErrorCode` | Error class and machine-readable error enum           |
+
 ## Pointer API
 
 `Pointer` tracks Pointer Events on one element and provides typed samples with viewport, document, and element-local coordinates. Samples also include movement, displacement, pressure, button state, and pointer type. The API supports mouse, pen, and touch input.
@@ -311,15 +351,15 @@ const closest = pointer.nearest(document.querySelectorAll("[data-target]"), {
 
 `close()` removes DOM listeners, releases captures, restores `touch-action`, cancels subscriptions, and clears tracked state. It is safe to call more than once. An instance created with a `null` or `undefined` target is inert, and an `AbortSignal` can close the instance automatically.
 
-| Member | Result |
-| --- | --- |
-| `on(name, handler, options?)` / `once(name, handler, options?)` | Subscribe to typed pointer samples |
-| `off(name, handler?)` | Remove listeners for an event |
-| `position` / `pointers` / `pressed` | Read current pointer state |
-| `capture(id?)` / `release(id?)` / `hasCapture(id?)` | Manage pointer capture |
-| `proximity(element, options?)` / `nearest(elements, options?)` | Measure pointer proximity |
-| `listenerCount(name?)` | Count active listeners |
-| `close()` | Remove listeners and release owned resources |
+| Member                                                          | Result                                       |
+| --------------------------------------------------------------- | -------------------------------------------- |
+| `on(name, handler, options?)` / `once(name, handler, options?)` | Subscribe to typed pointer samples           |
+| `off(name, handler?)`                                           | Remove listeners for an event                |
+| `position` / `pointers` / `pressed`                             | Read current pointer state                   |
+| `capture(id?)` / `release(id?)` / `hasCapture(id?)`             | Manage pointer capture                       |
+| `proximity(element, options?)` / `nearest(elements, options?)`  | Measure pointer proximity                    |
+| `listenerCount(name?)`                                          | Count active listeners                       |
+| `close()`                                                       | Remove listeners and release owned resources |
 
 ## Design Principles
 
@@ -338,7 +378,11 @@ HTML Tools is designed for modern browsers with support for the native Web APIs 
 
 The Query API uses standard DOM APIs such as `querySelector`, `querySelectorAll`, `getElementById`, `closest`, and `matches`.
 
-The Interaction API uses `addEventListener`, Pointer Events, `CustomEvent`, and `AbortSignal`.
+The Interaction API uses `addEventListener`, Pointer Events, `CustomEvent`, and `AbortSignal.
+
+The Pointer API uses Pointer Events, pointer capture, and `AbortSignal.
+
+The HTML API uses inert `<template>` parsing, DOM node creation, `addEventListener`, and `AbortSignal`.
 
 ## TypeScript Support
 
@@ -347,6 +391,10 @@ HTML Tools is written in TypeScript and ships with generated `.d.ts` declaration
 The Query API narrows known HTML and SVG tag names to their concrete element interfaces and supports optional runtime type filters through element constructors.
 
 The Interaction API infers native event payloads from their names and types custom event details through the `Events` generic.
+
+The Pointer API provides typed pointer samples and device-specific pointer kinds.
+
+The HTML API exposes typed template options, event handlers, and `HtmlErrorCode` values.
 
 ## Contributing
 
