@@ -8,6 +8,7 @@ export default defineConfig({
 		html: "src/html/index.ts",
 		"safe-zone": "src/safe-zone/index.ts",
 		viewport: "src/viewport/index.ts",
+		keyboard: "src/keyboard/index.ts",
 	},
 	target: "esnext",
 	format: ["esm"],

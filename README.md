@@ -22,7 +22,7 @@
 
 **Expressive JavaScript and TypeScript utilities for working with the DOM.**
 
-HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, the SafeZone API for geometric interaction zones, and the Viewport API for element geometry and visibility monitoring.
+HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, the SafeZone API for geometric interaction zones, the Viewport API for element geometry and visibility monitoring, and the Keyboard API for typed keyboard shortcuts.
 
 ## Installation
 
@@ -37,6 +37,7 @@ Import each API from its package subpath. The package exposes only these modular
 ```ts
 import { html, createHtml, unsafeHtml } from "html-tools/html";
 import { Interaction } from "html-tools/interaction";
+import { Keyboard } from "html-tools/keyboard";
 import { Pointer } from "html-tools/pointer";
 import { Query, hasDocument } from "html-tools/query";
 import { SafeZone } from "html-tools/safe-zone";
@@ -51,6 +52,7 @@ import { Viewport } from "html-tools/viewport";
 | `html-tools/html`        | HTML template rendering     |
 | `html-tools/safe-zone`   | Geometric interaction zones |
 | `html-tools/viewport`    | Element geometry monitoring |
+| `html-tools/keyboard`    | Typed keyboard shortcuts    |
 
 ## Query API
 
@@ -460,6 +462,51 @@ viewport.close();
 | `close()`                                                       | Disconnects observers and cancels subscriptions     |
 | `ViewportError` / `ViewportErrorCode`                           | Error class and machine-readable error enum         |
 
+## Keyboard API
+
+`Keyboard` registers typed shortcuts on an element, `document`, or `window`. Shortcut strings are normalized and validated at runtime, while TypeScript validates literal shortcuts and provides editor suggestions for individual keys and common modifier combinations.
+
+```ts
+import { Keyboard } from "html-tools/keyboard";
+
+const keyboard = new Keyboard(document, {
+	defaults: { preventDefault: true },
+	shortcuts: {
+		"ctrl+k": () => openCommandMenu(),
+		escape: () => closeCommandMenu(),
+	},
+});
+
+keyboard.on(["ctrl+shift+p", "meta+shift+p"], (event, context) => {
+	console.log(context.shortcut, event.key);
+});
+
+const handle = keyboard.register("shift+enter", submitForm);
+handle.enabled = false;
+handle.close();
+
+keyboard.keypress(({ key, combo, editable }) => {
+	console.log({ key, combo, editable });
+});
+
+keyboard.close();
+```
+
+`on`, `once`, and `register` accept single keys (for example `"a"`, `"escape"`, or `"f5"`) and modifier combinations such as `"ctrl+k"`, `"shift+enter"`, and `"mod+shift+p"`. The exported `Shortcut` type provides finite editor completions for keys and combinations with up to three modifiers; literal strings outside those suggestions are still checked by `ValidShortcut` and validated at runtime when dynamic.
+
+By default, shortcuts require an exact modifier match and ignore most printable keys from editable fields. Set `exact: false` to allow additional modifiers, configure `inputs` as `"allow"` or `"ignore"`, or use `match: "code"` for physical-key bindings such as WASD. `mod` resolves to Meta on Apple platforms and Ctrl elsewhere. IME composition and AltGr text input do not trigger shortcuts. Use `keypress()` when a handler should receive every normalized key event.
+
+| API                                             | Result                                           |
+| ----------------------------------------------- | ------------------------------------------------ |
+| `new Keyboard(target, options?)`                | Creates a keyboard shortcut manager              |
+| `on(shortcut, handler, options?)` / `once(...)` | Registers one or more typed shortcuts            |
+| `register(shortcut, handler, options?)`         | Registers a shortcut with an enable/close handle |
+| `keypress(handler, options?)`                   | Receives normalized keyboard events              |
+| `off(shortcut?, handler?)` / `has(shortcut)`    | Removes or checks shortcut registrations         |
+| `Keyboard.matches(event, shortcut, options?)`   | Tests an event without creating a listener       |
+| `close()`                                       | Removes all listeners and shortcuts              |
+| `KeyboardError` / `KeyboardErrorCode`           | Error class and machine-readable error enum      |
+
 ## Design Principles
 
 HTML Tools is built around a few core principles:
@@ -487,6 +534,8 @@ The SafeZone API uses element geometry, `requestAnimationFrame`, `ResizeObserver
 
 The Viewport API uses element geometry, `IntersectionObserver`, `ResizeObserver`, scroll events, and `requestAnimationFrame`.
 
+The Keyboard API uses native `keydown` and `keyup` events and does not depend on other HTML Tools modules.
+
 ## TypeScript Support
 
 HTML Tools is written in TypeScript and ships with generated `.d.ts` declarations.
@@ -502,6 +551,8 @@ The HTML API exposes typed template options, event handlers, and `HtmlErrorCode`
 The SafeZone API exposes typed sources, geometry, options, event payloads, and `SafeZoneErrorCode` values.
 
 The Viewport API exposes typed measurements, event payloads, options, and `ViewportErrorCode` values.
+
+The Keyboard API validates shortcut literals at compile time and provides typed handler payloads, options, and `KeyboardErrorCode` values.
 
 ## Contributing
 

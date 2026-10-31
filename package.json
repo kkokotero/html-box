@@ -10,6 +10,7 @@
 		"gestures",
 		"html",
 		"interaction",
+		"keyboard",
 		"query",
 		"typescript"
 	],
@@ -59,6 +60,10 @@
 		"./viewport": {
 			"types": "./dist/viewport.d.ts",
 			"default": "./dist/viewport.js"
+		},
+		"./keyboard": {
+			"types": "./dist/keyboard.d.ts",
+			"default": "./dist/keyboard.js"
 		}
 	},
 	"publishConfig": {
