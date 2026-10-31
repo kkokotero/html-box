@@ -1,7 +1,13 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-	entry: ["src/index.ts"],
+	entry: {
+		query: "src/query/index.ts",
+		interaction: "src/interaction/index.ts",
+		pointer: "src/pointer/index.ts",
+		html: "src/html/index.ts",
+		"safe-zone": "src/safe-zone/index.ts",
+	},
 	target: "esnext",
 	format: ["esm"],
 	platform: "neutral",

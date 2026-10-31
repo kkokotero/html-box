@@ -23,3 +23,4 @@ export const Query = new DocumentScope();
 
 export * from "./types";
 export * from "./query-error";
+export { hasDocument } from "../constants";

@@ -30,6 +30,26 @@ HTML Tools is a collection of lightweight, independent utilities for DOM work. T
 npm install html-tools
 ```
 
+## Module imports
+
+Import each API from its package subpath. The package exposes only these modular entry points.
+
+```ts
+import { html, createHtml, unsafeHtml } from "html-tools/html";
+import { Interaction } from "html-tools/interaction";
+import { Pointer } from "html-tools/pointer";
+import { Query, hasDocument } from "html-tools/query";
+import { SafeZone } from "html-tools/safe-zone";
+```
+
+| Import path              | Module                      |
+| ------------------------ | --------------------------- |
+| `html-tools/query`       | Query utilities             |
+| `html-tools/interaction` | Native events and gestures  |
+| `html-tools/pointer`     | Pointer tracking            |
+| `html-tools/html`        | HTML template rendering     |
+| `html-tools/safe-zone`   | Geometric interaction zones |
+
 ## Query API
 
 `Query` is a document-backed query scope. It returns `undefined` or an empty array when no element matches, and it is safe to call in environments without a DOM.
@@ -37,7 +57,7 @@ npm install html-tools
 ### Basic queries
 
 ```ts
-import { Query } from "html-tools";
+import { Query } from "html-tools/query";
 
 const button = Query.one("button");
 const items = Query.all("li");
@@ -113,7 +133,7 @@ Query.at<HTMLLIElement>("li", -1);
 `Query` is safe to import in server-side rendering, workers, and Node.js environments where `document` is unavailable.
 
 ```ts
-import { hasDocument, Query } from "html-tools";
+import { hasDocument, Query } from "html-tools/query";
 
 const button = Query.one("button"); // undefined without a DOM
 
@@ -131,7 +151,7 @@ if (hasDocument) {
 ### Native events
 
 ```ts
-import { Interaction } from "html-tools";
+import { Interaction } from "html-tools/interaction";
 
 const button = document.querySelector("button");
 
@@ -248,7 +268,7 @@ controller.abort(); // closes the interaction and removes remaining listeners
 The `html` template tag renders a static HTML template with typed bindings for child content, attributes, properties, booleans, and events. Dynamic strings are inserted as text nodes by default. Use `html.fragment` for multiple roots, or `createHtml` to share an `AbortSignal` across event listeners.
 
 ```ts
-import { createHtml, html, unsafeHtml } from "html-tools";
+import { createHtml, html, unsafeHtml } from "html-tools/html";
 
 const title = "Welcome";
 const button = html`
@@ -290,7 +310,7 @@ The compiler rejects interpolations in tag or attribute names, comments, and raw
 ### Tracking pointer events
 
 ```ts
-import { Pointer } from "html-tools";
+import { Pointer } from "html-tools/pointer";
 
 const canvas = document.querySelector("canvas");
 
@@ -366,7 +386,7 @@ const closest = pointer.nearest(document.querySelectorAll("[data-target]"), {
 `SafeZone` detects when a source enters, leaves, or remains inside a zone formed by one or more elements. A source can be the global pointer, an element rectangle, or a callback returning a viewport point or rectangle. The zone can use the convex hull (`"hull"`, default), the union of target rectangles (`"union"`), or their bounding box (`"bounds"`).
 
 ```ts
-import { SafeZone } from "html-tools";
+import { SafeZone } from "html-tools/safe-zone";
 
 const zone = new SafeZone("pointer", [trigger, submenu], {
 	padding: 8,

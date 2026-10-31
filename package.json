@@ -35,12 +35,26 @@
 	],
 	"type": "module",
 	"sideEffects": false,
-	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
 	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+		"./query": {
+			"types": "./dist/query.d.ts",
+			"default": "./dist/query.js"
+		},
+		"./interaction": {
+			"types": "./dist/interaction.d.ts",
+			"default": "./dist/interaction.js"
+		},
+		"./pointer": {
+			"types": "./dist/pointer.d.ts",
+			"default": "./dist/pointer.js"
+		},
+		"./html": {
+			"types": "./dist/html.d.ts",
+			"default": "./dist/html.js"
+		},
+		"./safe-zone": {
+			"types": "./dist/safe-zone.d.ts",
+			"default": "./dist/safe-zone.js"
 		}
 	},
 	"publishConfig": {
