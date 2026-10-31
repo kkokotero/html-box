@@ -22,7 +22,7 @@
 
 **Expressive JavaScript and TypeScript utilities for working with the DOM.**
 
-HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Interaction API for native events and gestures, the Pointer API for pointer tracking, and the HTML API for secure template rendering.
+HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, and the SafeZone API for geometric interaction zones.
 
 ## Installation
 
@@ -361,6 +361,43 @@ const closest = pointer.nearest(document.querySelectorAll("[data-target]"), {
 | `listenerCount(name?)`                                          | Count active listeners                       |
 | `close()`                                                       | Remove listeners and release owned resources |
 
+## SafeZone API
+
+`SafeZone` detects when a source enters, leaves, or remains inside a zone formed by one or more elements. A source can be the global pointer, an element rectangle, or a callback returning a viewport point or rectangle. The zone can use the convex hull (`"hull"`, default), the union of target rectangles (`"union"`), or their bounding box (`"bounds"`).
+
+```ts
+import { SafeZone } from "html-tools";
+
+const zone = new SafeZone("pointer", [trigger, submenu], {
+	padding: 8,
+	shape: "hull",
+	leaveDelay: 150,
+});
+
+zone.on("leave", () => closeMenu());
+zone.on("enter", ({ point, zone: geometry }) => {
+	console.log(point, geometry.bounds);
+});
+
+// Re-measure after a transform or animation that did not trigger layout events.
+zone.update();
+zone.close();
+```
+
+Use `mode` for element sources: `"intersect"` checks for any overlap, `"contain"` requires the source rectangle to fit inside the zone, and `"center"` tests only its center. `padding` accepts a number or per-edge values. `enterDelay` and `leaveDelay` add transition delays. `poll: true` re-measures every animation frame while the zone is active.
+
+The zone starts observing only while it has listeners or a visualization overlay. It batches evaluation with `requestAnimationFrame`, tracks layout changes through scroll, resize, and `ResizeObserver`, and supports `AbortSignal` cleanup. `show()` adds an SVG debug overlay; `hide()` removes it. This is a geometry and event utility, not a DOM renderer.
+
+| API                                                             | Result                                                   |
+| --------------------------------------------------------------- | -------------------------------------------------------- |
+| `new SafeZone(source, target, options?)`                        | Creates a zone monitor                                   |
+| `on(name, handler, options?)` / `once(name, handler, options?)` | Subscribes to `enter`, `leave`, or `inside`              |
+| `add(target)` / `remove(target)`                                | Changes the target elements                              |
+| `measure()` / `contains(x, y)` / `update()`                     | Reads geometry or evaluates synchronously                |
+| `show(options?)` / `hide()`                                     | Controls the SVG visualization                           |
+| `close()`                                                       | Removes listeners, observers, overlay, and subscriptions |
+| `SafeZoneError` / `SafeZoneErrorCode`                           | Error class and machine-readable error enum              |
+
 ## Design Principles
 
 HTML Tools is built around a few core principles:
@@ -382,7 +419,9 @@ The Interaction API uses `addEventListener`, Pointer Events, `CustomEvent`, and 
 
 The Pointer API uses Pointer Events, pointer capture, and `AbortSignal.
 
-The HTML API uses inert `<template>` parsing, DOM node creation, `addEventListener`, and `AbortSignal`.
+The HTML API uses inert `<template>` parsing, DOM node creation, `addEventListener`, and `AbortSignal.`
+
+The SafeZone API uses element geometry, `requestAnimationFrame`, `ResizeObserver`, pointer events, and SVG for its optional overlay.
 
 ## TypeScript Support
 
@@ -395,6 +434,8 @@ The Interaction API infers native event payloads from their names and types cust
 The Pointer API provides typed pointer samples and device-specific pointer kinds.
 
 The HTML API exposes typed template options, event handlers, and `HtmlErrorCode` values.
+
+The SafeZone API exposes typed sources, geometry, options, event payloads, and `SafeZoneErrorCode` values.
 
 ## Contributing
 
