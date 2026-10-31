@@ -27,8 +27,14 @@
 			},
 		},
 		{
-			"files": ["*.config.ts", "src/**/*.test.ts", "src/**/*.spec.ts"],
+			"files": [
+				"*.config.ts",
+				"test/**/*.ts",
+				"src/**/*.test.ts",
+				"src/**/*.spec.ts",
+			],
 			"env": {
+				"browser": true,
 				"node": true,
 				"vitest": true,
 			},

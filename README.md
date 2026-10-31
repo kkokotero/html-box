@@ -22,7 +22,7 @@
 
 **Expressive JavaScript and TypeScript utilities for working with the DOM.**
 
-HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API: a consistent, type-safe interface for selector-based lookups across documents, document fragments, and elements.
+HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups and the Interaction API for native events, delegated listeners, and built-in gestures.
 
 ## Installation
 
@@ -124,6 +124,125 @@ if (hasDocument) {
 
 `hasDocument` is evaluated when the module loads.
 
+## Interaction API
+
+`Interaction` groups listeners for a single target. Native events use kebab-case aliases such as `double-click` and `key-down`. Every registration returns a subscription that can be cancelled independently, and `close()` cancels every listener owned by the instance.
+
+### Native events
+
+```ts
+import { Interaction } from "html-tools";
+
+const button = document.querySelector("button");
+
+if (button) {
+	const interaction = new Interaction(button);
+
+	const clickSubscription = interaction.on("click", (event) => {
+		console.log(event.clientX, event.clientY);
+	});
+
+	interaction.once("key-down", (event) => {
+		console.log(event.key);
+	});
+
+	clickSubscription.cancel();
+	interaction.close();
+}
+```
+
+### Delegated listeners
+
+Use `delegate` to handle events from matching descendants. The handler receives the matched element through `ctx.element`.
+
+```ts
+const list = document.querySelector("ul");
+
+if (list) {
+	const interaction = new Interaction(list);
+
+	interaction.on(
+		"click",
+		(event, ctx) => {
+			console.log(event.type, ctx.element);
+		},
+		{ delegate: "button[data-action]" },
+	);
+}
+```
+
+### Built-in gestures
+
+The package includes `hover`, `long-press`, and `outside-click` gestures.
+
+```ts
+const card = document.querySelector(".card");
+
+if (card) {
+	const interaction = new Interaction(card);
+
+	interaction.on("hover", (event) => {
+		console.log(event.hovering);
+	});
+
+	interaction.on(
+		"long-press",
+		(event) => {
+			console.log(event.x, event.y, event.duration);
+		},
+		{ delay: 600, tolerance: 12 },
+	);
+
+	interaction.on("outside-click", () => {
+		console.log("clicked outside");
+	});
+}
+```
+
+### Custom events
+
+Type the custom event map to get a typed `detail` field. Native and gesture names are reserved and cannot be emitted.
+
+```ts
+const interaction = new Interaction<{
+	"app:ready": { id: string };
+}>(document.body);
+
+interaction.on("app:ready", (event) => {
+	console.log(event.detail.id);
+});
+
+interaction.emit("app:ready", { id: "main" });
+```
+
+### Cleanup
+
+Aborting an `AbortSignal` cancels a listener or closes the entire interaction. `off()` removes every listener for an event, or only a specific handler.
+
+```ts
+const controller = new AbortController();
+const interaction = new Interaction(document.body, {
+	signal: controller.signal,
+});
+
+const onKeyDown = (event: KeyboardEvent) => {
+	console.log(event.key);
+};
+
+interaction.on("key-down", onKeyDown);
+interaction.off("key-down", onKeyDown);
+
+controller.abort(); // closes the interaction and removes remaining listeners
+```
+
+| Method                          | Result                                                    |
+| ------------------------------- | --------------------------------------------------------- |
+| `on(name, handler, options?)`   | Registers a listener and returns a `Subscription`         |
+| `once(name, handler, options?)` | Registers a listener that runs at most once               |
+| `off(name, handler?)`           | Removes listeners for an event                            |
+| `emit(name, detail?, init?)`    | Dispatches a typed `CustomEvent` from the target          |
+| `close()`                       | Cancels all listeners and marks the interaction as closed |
+
 ## Design Principles
 
 HTML Tools is built around a few core principles:
@@ -141,11 +260,15 @@ HTML Tools is designed for modern browsers with support for the native Web APIs 
 
 The Query API uses standard DOM APIs such as `querySelector`, `querySelectorAll`, `getElementById`, `closest`, and `matches`.
 
+The Interaction API uses `addEventListener`, Pointer Events, `CustomEvent`, and `AbortSignal`.
+
 ## TypeScript Support
 
 HTML Tools is written in TypeScript and ships with generated `.d.ts` declarations.
 
 The Query API narrows known HTML and SVG tag names to their concrete element interfaces and supports optional runtime type filters through element constructors.
+
+The Interaction API infers native event payloads from their names and types custom event details through the `Events` generic.
 
 ## Contributing
 
