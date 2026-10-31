@@ -1,5 +1,5 @@
 {
-	"name": "html-tools",
+	"name": "html-box",
 	"version": "0.1.0",
 	"private": false,
 	"description": "Expressive JavaScript and TypeScript utilities for working with the DOM",
@@ -16,7 +16,7 @@
 	],
 	"homepage": "https://github.com/kkokotero/html-tools#readme",
 	"bugs": {
-		"url": "https://github.com/kkokotero/html-tools/issues"
+		"url": "https://github.com/kkokotero/html-box/issues"
 	},
 	"license": "MIT",
 	"author": {
@@ -26,7 +26,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/kkokotero/html-tools.git"
+		"url": "git+https://github.com/kkokotero/html-box.git"
 	},
 	"files": [
 		"dist",

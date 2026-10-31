@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest a new API, module, or improvement for html-tools
+description: Suggest a new API, module, or improvement for html-box
 title: "[Feature]: "
 labels: ["enhancement"]
 
@@ -8,7 +8,7 @@ body:
     id: area
     attributes:
       label: Area
-      description: Which part of html-tools does this request relate to?
+      description: Which part of html-box does this request relate to?
       options:
         - Query API
         - New module
@@ -34,7 +34,7 @@ body:
       description: Describe the API, behavior, or output you would like to see.
       placeholder: |
         ```ts
-        import { Query } from "html-tools";
+        import { Query } from "html-box";
 
         Query.one("button");
         ```

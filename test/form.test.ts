@@ -11,7 +11,7 @@ function createForm(markup: string): HTMLFormElement {
 describe("Form", () => {
 	it("reads successful controls and groups repeated names", () => {
 		const form = createForm(`
-			<input name="query" value="html tools">
+			<input name="query" value="HTML Box">
 			<input name="tag" value="dom">
 			<input name="tag" value="typescript">
 			<input name="disabled" value="ignored" disabled>
@@ -20,7 +20,7 @@ describe("Form", () => {
 		`);
 
 		expect(Form.values(form)).toEqual({
-			query: "html tools",
+			query: "HTML Box",
 			tag: ["dom", "typescript"],
 			feature: "enabled",
 		});

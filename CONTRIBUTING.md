@@ -1,6 +1,6 @@
-# Contributing to HTML Tools
+# Contributing to HTML Box
 
-Thanks for taking the time to improve HTML Tools. Bug reports, documentation fixes, tests, and focused feature proposals are welcome.
+Thanks for taking the time to improve HTML Box. Bug reports, documentation fixes, tests, and focused feature proposals are welcome.
 
 ## Before you start
 
@@ -13,8 +13,8 @@ Thanks for taking the time to improve HTML Tools. Bug reports, documentation fix
 Use Node.js 22 or 24 to match the project's CI workflow. Node.js 18 is the minimum supported runtime.
 
 ```bash
-git clone https://github.com/kkokotero/html-tools.git
-cd html-tools
+git clone https://github.com/kkokotero/html-box.git
+cd html-box
 npm install
 ```
 

@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Questions and usage help
-    url: https://github.com/kkokotero/html-tools/discussions
-    about: Ask questions and discuss html-tools usage
+    url: https://github.com/kkokotero/html-box/discussions
+    about: Ask questions and discuss html-box usage
   - name: Documentation
-    url: https://github.com/kkokotero/html-tools#readme
+    url: https://github.com/kkokotero/html-box#readme
     about: Read the project README and API documentation

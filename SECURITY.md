@@ -4,7 +4,7 @@
 
 Please do not report security vulnerabilities in a public issue or discussion.
 
-Use [GitHub's private vulnerability reporting](https://github.com/kkokotero/html-tools/security/advisories/new) if it is available for this repository. If private reporting is unavailable, contact a repository maintainer privately through GitHub before sharing technical details publicly.
+Use [GitHub's private vulnerability reporting](https://github.com/kkokotero/html-box/security/advisories/new) if it is available for this repository. If private reporting is unavailable, contact a repository maintainer privately through GitHub before sharing technical details publicly.
 
 Include the affected module and version, the impact, steps to reproduce, and any suggested mitigation. Please avoid including real user data, credentials, or other secrets in a report.
 

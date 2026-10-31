@@ -2,7 +2,7 @@
 
 ## Our commitment
 
-We want HTML Tools to be a welcoming place for everyone, regardless of experience, identity, background, or point of view. We are committed to making participation respectful and free from harassment.
+We want HTML Box to be a welcoming place for everyone, regardless of experience, identity, background, or point of view. We are committed to making participation respectful and free from harassment.
 
 ## Expected behavior
 

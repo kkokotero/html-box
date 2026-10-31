@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report incorrect behavior in html-tools
+description: Report incorrect behavior in html-box
 title: "[Bug]: "
 labels: ["bug"]
 
@@ -7,8 +7,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: html-tools version
-      description: Which version of html-tools are you using?
+      label: html-box version
+      description: Which version of html-box are you using?
       placeholder: 0.2.1
     validations:
       required: true
