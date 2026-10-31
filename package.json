@@ -68,6 +68,10 @@
 		"./scheduler": {
 			"types": "./dist/scheduler.d.ts",
 			"default": "./dist/scheduler.js"
+		},
+		"./element": {
+			"types": "./dist/element.d.ts",
+			"default": "./dist/element.js"
 		}
 	},
 	"publishConfig": {

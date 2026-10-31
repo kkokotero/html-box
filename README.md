@@ -22,7 +22,7 @@
 
 **Expressive JavaScript and TypeScript utilities for working with the DOM.**
 
-HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, the SafeZone API for geometric interaction zones, the Viewport API for element geometry and visibility monitoring, the Keyboard API for typed keyboard shortcuts, and the Scheduler API for cancelable timers and animation frames.
+HTML Tools is a collection of lightweight, independent utilities for DOM work. The current release provides the Query API for selector-based lookups, the Element API for common element operations, the Interaction API for native events and gestures, the Pointer API for pointer tracking, the HTML API for secure template rendering, the SafeZone API for geometric interaction zones, the Viewport API for element geometry and visibility monitoring, the Keyboard API for typed keyboard shortcuts, and the Scheduler API for cancelable timers and animation frames.
 
 ## Installation
 
@@ -35,6 +35,7 @@ npm install html-tools
 Import each API from its package subpath. The package exposes only these modular entry points.
 
 ```ts
+import { Element } from "html-tools/element";
 import { html, createHtml, unsafeHtml } from "html-tools/html";
 import { Interaction } from "html-tools/interaction";
 import { Keyboard } from "html-tools/keyboard";
@@ -45,16 +46,17 @@ import { Scheduler } from "html-tools/scheduler";
 import { Viewport } from "html-tools/viewport";
 ```
 
-| Import path              | Module                       |
-| ------------------------ | ---------------------------- |
-| `html-tools/query`       | Query utilities              |
-| `html-tools/interaction` | Native events and gestures   |
-| `html-tools/pointer`     | Pointer tracking             |
-| `html-tools/html`        | HTML template rendering      |
-| `html-tools/safe-zone`   | Geometric interaction zones  |
-| `html-tools/viewport`    | Element geometry monitoring  |
-| `html-tools/keyboard`    | Typed keyboard shortcuts     |
-| `html-tools/scheduler`   | Cancelable timers and frames |
+| Import path              | Module                        |
+| ------------------------ | ----------------------------- |
+| `html-tools/query`       | Query utilities               |
+| `html-tools/interaction` | Native events and gestures    |
+| `html-tools/pointer`     | Pointer tracking              |
+| `html-tools/html`        | HTML template rendering       |
+| `html-tools/safe-zone`   | Geometric interaction zones   |
+| `html-tools/viewport`    | Element geometry monitoring   |
+| `html-tools/keyboard`    | Typed keyboard shortcuts      |
+| `html-tools/scheduler`   | Cancelable timers and frames  |
+| `html-tools/element`     | Common DOM element operations |
 
 ## Query API
 
@@ -149,6 +151,40 @@ if (hasDocument) {
 ```
 
 `hasDocument` is evaluated when the module loads.
+
+## Element API
+
+`Element` provides helpers for common HTML and SVG operations. `create` and `createSvg` infer concrete element types from known tag names; `createNS` supports custom namespaces. The module also provides composition, cleanup, containment, and bulk attribute helpers. Namespaced `xlink`, `xml`, and `xmlns` attributes are handled for SVG.
+
+```ts
+import { Element } from "html-tools/element";
+
+const button = Element.create("button");
+button.type = "button";
+
+const svg = Element.createSvg("svg");
+const circle = Element.createSvg("circle");
+Element.setAttributes(circle, { cx: 12, cy: 12, r: 10, fill: "currentColor" });
+Element.append(svg, circle);
+
+const copy = Element.clone(svg);
+Element.replace(svg, copy);
+Element.empty(copy);
+Element.remove(copy);
+```
+
+| API                                  | Result                                                              |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| `create(tagName)`                    | Detached HTML element, narrowed for known HTML tag names            |
+| `createSvg(tagName)`                 | Detached SVG element, narrowed for known SVG tag names              |
+| `createNS(namespace, name)`          | Detached element created in the requested namespace                 |
+| `remove(element)`                    | Removes the element from its parent, if present, and returns it     |
+| `replace(current, next)`             | Replaces the current element when attached and returns it           |
+| `clone(element, deep?)`              | Detached clone; descendants are included by default                 |
+| `append(parent, ...nodes)`           | Appends nodes or text and returns the parent                        |
+| `empty(element)`                     | Removes all child nodes and returns the element                     |
+| `contains(parent, node)`             | Checks containment, including when both arguments are the same node |
+| `setAttributes(element, attributes)` | Sets, toggles, or removes regular and namespaced attributes         |
 
 ## Interaction API
 

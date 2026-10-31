@@ -10,6 +10,7 @@ export default defineConfig({
 		viewport: "src/viewport/index.ts",
 		keyboard: "src/keyboard/index.ts",
 		scheduler: "src/scheduler/index.ts",
+		element: "src/element/index.ts",
 	},
 	target: "esnext",
 	format: ["esm"],
