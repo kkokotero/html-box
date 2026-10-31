@@ -52,6 +52,7 @@ interface Dispatcher {
 	readonly capture: boolean;
 	readonly bindings: Set<Binding>;
 	readonly listener: (event: Event) => void;
+	attached: boolean;
 }
 
 const inactive = (name: string): ShortcutHandle => ({
@@ -96,6 +97,7 @@ export class Keyboard {
 	>();
 	private readonly bindings = new Set<Binding>();
 	private isClosed = false;
+	private isPaused = false;
 	private detachSignal: Off = noop;
 
 	/**
@@ -170,6 +172,11 @@ export class Keyboard {
 	/** Indicates whether the instance has been closed. */
 	get closed(): boolean {
 		return this.isClosed;
+	}
+
+	/** Indicates whether native keyboard dispatch is temporarily suspended. */
+	get paused(): boolean {
+		return this.isPaused;
 	}
 
 	/** Platform used to resolve the `mod` modifier. */
@@ -415,6 +422,33 @@ export class Keyboard {
 
 	/* Lifecycle */
 
+	/**
+	 * Temporarily removes native keyboard listeners while retaining shortcuts.
+	 *
+	 * @returns This instance for chained lifecycle control.
+	 * @throws {@link KeyboardError} If the instance has been closed.
+	 */
+	pause(): this {
+		this.assertOpen();
+		if (this.isPaused) return this;
+		this.isPaused = true;
+		for (const dispatchers of this.dispatchers.values()) {
+			for (const dispatcher of dispatchers.values()) this.detach(dispatcher);
+		}
+		return this;
+	}
+
+	/** Reattaches native listeners for shortcuts and handlers that remain registered. */
+	resume(): this {
+		this.assertOpen();
+		if (!this.isPaused) return this;
+		this.isPaused = false;
+		for (const dispatchers of this.dispatchers.values()) {
+			for (const dispatcher of dispatchers.values()) this.attach(dispatcher);
+		}
+		return this;
+	}
+
 	/** Removes all shortcuts and native event listeners. Safe to call repeatedly. */
 	close(): void {
 		if (
@@ -424,6 +458,7 @@ export class Keyboard {
 		)
 			return;
 		this.isClosed = true;
+		this.isPaused = false;
 		this.detachSignal();
 		for (const binding of this.bindings) binding.close();
 		this.bindings.clear();
@@ -491,20 +526,40 @@ export class Keyboard {
 				capture,
 				bindings: new Set(),
 				listener: (event) => this.dispatch(created, event as KeyboardEvent),
+				attached: false,
 			};
-			target.addEventListener(type, created.listener, { capture });
 			byKey.set(key, (dispatcher = created));
 		}
 		return dispatcher;
 	}
 
-	private release(dispatcher: Dispatcher): void {
-		if (dispatcher.bindings.size > 0) return;
+	private attach(dispatcher: Dispatcher): void {
+		if (
+			this.isPaused ||
+			this.isClosed ||
+			dispatcher.attached ||
+			dispatcher.bindings.size === 0
+		)
+			return;
+		dispatcher.target.addEventListener(dispatcher.type, dispatcher.listener, {
+			capture: dispatcher.capture,
+		});
+		dispatcher.attached = true;
+	}
+
+	private detach(dispatcher: Dispatcher): void {
+		if (!dispatcher.attached) return;
 		dispatcher.target.removeEventListener(
 			dispatcher.type,
 			dispatcher.listener,
 			{ capture: dispatcher.capture },
 		);
+		dispatcher.attached = false;
+	}
+
+	private release(dispatcher: Dispatcher): void {
+		if (dispatcher.bindings.size > 0) return;
+		this.detach(dispatcher);
 		const byKey = this.dispatchers.get(dispatcher.target);
 		byKey?.delete(`${dispatcher.type}:${dispatcher.capture}`);
 		if (byKey?.size === 0) this.dispatchers.delete(dispatcher.target);
@@ -589,6 +644,7 @@ export class Keyboard {
 
 		dispatcher.bindings.add(binding);
 		this.bindings.add(binding);
+		this.attach(dispatcher);
 		options.signal?.addEventListener("abort", close, { once: true });
 
 		return {
@@ -609,8 +665,8 @@ export class Keyboard {
 	}
 
 	private dispatch(dispatcher: Dispatcher, event: KeyboardEvent): void {
-		// Algunos autofill y herramientas disparan "keydown" sin `key`.
-		if (this.isClosed || typeof event.key !== "string") return;
+		// Some autofill implementations and tools dispatch keydown without `key`.
+		if (this.isClosed || this.isPaused || typeof event.key !== "string") return;
 
 		let described: Described | null = null;
 		for (const binding of dispatcher.bindings) {
@@ -618,7 +674,7 @@ export class Keyboard {
 			described ??= describe(event);
 
 			if (binding.kind === "shortcut") {
-				if (described.composing || described.altGraph) continue; // IME y AltGr escriben texto
+				if (described.composing || described.altGraph) continue; // IME composition and AltGr produce text.
 				if (
 					!binding.parsed ||
 					!matchesShortcut(

@@ -274,6 +274,8 @@ export interface Entry {
 	readonly name: string;
 	readonly handler: unknown;
 	readonly cancel: Off;
+	readonly pause: Off;
+	readonly resume: Off;
 }
 
 /**

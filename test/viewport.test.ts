@@ -101,6 +101,28 @@ describe("Viewport", () => {
 		viewport.close();
 	});
 
+	it("pauses observers and change events while retaining subscriptions", () => {
+		const element = document.createElement("div");
+		setRect(element, { left: 0, top: 0 });
+		const viewport = new Viewport(element);
+		const handler = vi.fn<ViewportHandler<"move">>();
+		const subscription = viewport.on("move", handler);
+
+		viewport.pause();
+		setRect(element, { left: 10, top: 0 });
+		viewport.update();
+		expect(viewport.paused).toBe(true);
+		expect(subscription.active).toBe(true);
+		expect(handler).not.toHaveBeenCalled();
+
+		viewport.resume();
+		setRect(element, { left: 20, top: 0 });
+		viewport.update();
+		expect(viewport.paused).toBe(false);
+		expect(handler).toHaveBeenCalledTimes(1);
+		viewport.close();
+	});
+
 	it("reports resize changes and supports one-shot subscriptions", () => {
 		const element = document.createElement("div");
 		setRect(element, { width: 100, height: 50 });

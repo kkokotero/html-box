@@ -105,6 +105,9 @@ export class Pointer<T extends Element = Element> {
 	private readonly primaryOnly: boolean;
 	private readonly acceptedTypes: readonly PointerKind[] | undefined;
 	private readonly autoCapture: boolean;
+	private readonly touchStyle: CSSStyleDeclaration | undefined;
+	private readonly configuredTouchAction: string | undefined;
+	private readonly previousTouchAction: string | undefined;
 
 	private readonly tracks = new Map<number, PointerTrack>();
 	private readonly entries = new Map<PointerEventName, Set<PointerEntry>>();
@@ -114,6 +117,7 @@ export class Pointer<T extends Element = Element> {
 	private detachListeners: PointerDisposer = NOOP;
 	private restoreTouchAction: PointerDisposer = NOOP;
 	private isClosed = false;
+	private isPaused = false;
 
 	/**
 	 * Creates a pointer tracker.
@@ -136,6 +140,9 @@ export class Pointer<T extends Element = Element> {
 			element && options.touchAction !== undefined
 				? getTouchActionStyle(element)
 				: undefined;
+		this.touchStyle = touchStyle;
+		this.configuredTouchAction = options.touchAction;
+		this.previousTouchAction = touchStyle?.touchAction;
 
 		this.primaryOnly = options.primaryOnly ?? true;
 		this.acceptedTypes = options.types;
@@ -155,26 +162,12 @@ export class Pointer<T extends Element = Element> {
 		}
 
 		if (touchStyle && options.touchAction !== undefined) {
-			const previousTouchAction = touchStyle.touchAction;
-			touchStyle.touchAction = options.touchAction;
+			this.applyTouchAction();
 			this.restoreTouchAction = () => {
-				touchStyle.touchAction = previousTouchAction;
+				touchStyle.touchAction = this.previousTouchAction ?? "";
 			};
 		}
-
-		const disposers = (
-			["enter", "down", "move", "up", "cancel", "leave"] as const
-		).map((type) =>
-			addEventListenerWithCleanup(
-				element,
-				NATIVE_POINTER_EVENTS[type],
-				(event) => this.handlePointerEvent(type, event as PointerEvent),
-				{ passive: true },
-			),
-		);
-		this.detachListeners = () => {
-			for (const dispose of disposers) dispose();
-		};
+		this.attachListeners();
 	}
 
 	/**
@@ -191,6 +184,11 @@ export class Pointer<T extends Element = Element> {
 		return this.isClosed;
 	}
 
+	/** Indicates whether pointer events are temporarily suspended. */
+	get paused(): boolean {
+		return this.isPaused;
+	}
+
 	/**
 	 * Last primary pointer position.
 	 *
@@ -200,7 +198,7 @@ export class Pointer<T extends Element = Element> {
 	get position(): PointerPosition | null {
 		const element = this.element;
 		const last = this.lastSample;
-		if (this.isClosed || !element || !last) return null;
+		if (this.isClosed || this.isPaused || !element || !last) return null;
 
 		return this.toPointerPosition(
 			element,
@@ -222,7 +220,7 @@ export class Pointer<T extends Element = Element> {
 	 */
 	get pointers(): readonly PointerPosition[] {
 		const element = this.element;
-		if (this.isClosed || !element) return [];
+		if (this.isClosed || this.isPaused || !element) return [];
 
 		return [...this.tracks.values()].map((track) =>
 			this.toPointerPosition(
@@ -245,6 +243,7 @@ export class Pointer<T extends Element = Element> {
 	 * Whether any tracked pointer is currently pressed.
 	 */
 	get pressed(): boolean {
+		if (this.isPaused || this.isClosed) return false;
 		for (const track of this.tracks.values()) {
 			if (track.pressed) return true;
 		}
@@ -417,7 +416,7 @@ export class Pointer<T extends Element = Element> {
 		const radius = normalizeRadius(options.radius);
 		const metric = normalizeProximityMetric(options.metric);
 		const last = this.lastSample;
-		if (!target || this.isClosed || !last) return null;
+		if (!target || this.isClosed || this.isPaused || !last) return null;
 
 		return measureProximity(target, last.x, last.y, metric, radius);
 	}
@@ -439,7 +438,7 @@ export class Pointer<T extends Element = Element> {
 		const radius = normalizeRadius(options.radius);
 		const metric = normalizeProximityMetric(options.metric);
 		const last = this.lastSample;
-		if (this.isClosed || !last) return null;
+		if (this.isClosed || this.isPaused || !last) return null;
 
 		let best: Proximity<E> | null = null;
 		for (const candidate of candidates) {
@@ -471,6 +470,37 @@ export class Pointer<T extends Element = Element> {
 	}
 
 	/**
+	 * Detaches pointer listeners, releases captures, restores `touch-action`, and clears live samples.
+	 * Registered subscriptions remain available for {@link resume}.
+	 *
+	 * @returns This instance for chained lifecycle control.
+	 * @throws {PointerError} If the instance has been closed.
+	 */
+	pause(): this {
+		this.assertOpen();
+		if (this.isPaused) return this;
+		this.isPaused = true;
+		this.detachListeners();
+		this.detachListeners = NOOP;
+		if (this.element)
+			releaseAllPointerCaptures(this.element, this.tracks.keys());
+		this.restoreTouchAction();
+		this.tracks.clear();
+		this.lastSample = null;
+		return this;
+	}
+
+	/** Reattaches pointer listeners and reapplies the configured `touch-action` value. */
+	resume(): this {
+		this.assertOpen();
+		if (!this.isPaused) return this;
+		this.isPaused = false;
+		this.applyTouchAction();
+		this.attachListeners();
+		return this;
+	}
+
+	/**
 	 * Removes listeners, releases pointer captures, restores `touch-action`, and
 	 * cancels all subscriptions.
 	 *
@@ -480,6 +510,7 @@ export class Pointer<T extends Element = Element> {
 		if (this.isClosed) return;
 
 		this.detachSignal();
+		this.isPaused = false;
 		this.detachListeners();
 
 		const element = this.element;
@@ -517,7 +548,33 @@ export class Pointer<T extends Element = Element> {
 	 * @returns The target element, or `null` when closed or inert.
 	 */
 	private getCaptureTarget(): Element | null {
-		return this.element && !this.isClosed ? this.element : null;
+		return this.element && !this.isClosed && !this.isPaused
+			? this.element
+			: null;
+	}
+
+	private applyTouchAction(): void {
+		if (this.touchStyle && this.configuredTouchAction !== undefined) {
+			this.touchStyle.touchAction = this.configuredTouchAction;
+		}
+	}
+
+	private attachListeners(): void {
+		const element = this.element;
+		if (!element || this.isClosed || this.isPaused) return;
+		const disposers = (
+			["enter", "down", "move", "up", "cancel", "leave"] as const
+		).map((type) =>
+			addEventListenerWithCleanup(
+				element,
+				NATIVE_POINTER_EVENTS[type],
+				(event) => this.handlePointerEvent(type, event as PointerEvent),
+				{ passive: true },
+			),
+		);
+		this.detachListeners = () => {
+			for (const dispose of disposers) dispose();
+		};
 	}
 
 	/**
@@ -589,7 +646,13 @@ export class Pointer<T extends Element = Element> {
 		event: PointerEvent,
 	): void {
 		const element = this.element;
-		if (!element || this.isClosed || !this.acceptsPointer(event)) return;
+		if (
+			!element ||
+			this.isClosed ||
+			this.isPaused ||
+			!this.acceptsPointer(event)
+		)
+			return;
 
 		let track = this.tracks.get(event.pointerId);
 		if (!track) {

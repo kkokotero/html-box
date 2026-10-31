@@ -267,6 +267,26 @@ describe("Keyboard", () => {
 		keyboard.close();
 	});
 
+	it("pauses keyboard dispatch and resumes retained shortcuts", () => {
+		const target = document.createElement("div");
+		const keyboard = new Keyboard(target);
+		const handler = vi.fn<ShortcutHandler>();
+		const subscription = keyboard.on("ctrl+k", handler);
+
+		keyboard.pause();
+		dispatchKey(target, "k", { code: "KeyK", ctrlKey: true });
+		expect(keyboard.paused).toBe(true);
+		expect(subscription.active).toBe(true);
+		expect(keyboard.listenerCount()).toBe(1);
+		expect(handler).not.toHaveBeenCalled();
+
+		keyboard.resume();
+		dispatchKey(target, "k", { code: "KeyK", ctrlKey: true });
+		expect(keyboard.paused).toBe(false);
+		expect(handler).toHaveBeenCalledTimes(1);
+		keyboard.close();
+	});
+
 	it("registers shortcut maps passed to the constructor", () => {
 		const target = document.createElement("div");
 		const handler = vi.fn<ShortcutHandler>();

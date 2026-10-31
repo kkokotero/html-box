@@ -63,6 +63,7 @@ export class Interaction<
 	private readonly entries = new Map<string, Set<Entry>>();
 	private detachSignal: Off = NOOP;
 	private isClosed = false;
+	private isPaused = false;
 
 	/**
 	 * Creates an interaction manager.
@@ -99,6 +100,11 @@ export class Interaction<
 	 */
 	get closed(): boolean {
 		return this.isClosed;
+	}
+
+	/** Indicates whether listener dispatch is temporarily suspended. */
+	get paused(): boolean {
+		return this.isPaused;
 	}
 
 	/**
@@ -246,8 +252,36 @@ export class Interaction<
 			name,
 			eventInit as CustomEventInit<Events[K]>,
 		);
+		if (this.isPaused) return true;
 
 		return this.target.dispatchEvent(event);
+	}
+
+	/**
+	 * Temporarily detaches native listeners and gestures while retaining subscriptions.
+	 *
+	 * @returns This instance for chained lifecycle control.
+	 * @throws {InteractionError} If the interaction has been closed.
+	 */
+	pause(): this {
+		this.assertOpen();
+		if (this.isPaused) return this;
+		this.isPaused = true;
+		for (const entries of this.entries.values()) {
+			for (const entry of entries) entry.pause();
+		}
+		return this;
+	}
+
+	/** Reattaches listeners for retained subscriptions. */
+	resume(): this {
+		this.assertOpen();
+		if (!this.isPaused) return this;
+		this.isPaused = false;
+		for (const entries of this.entries.values()) {
+			for (const entry of entries) entry.resume();
+		}
+		return this;
 	}
 
 	/**
@@ -258,6 +292,7 @@ export class Interaction<
 	close(): void {
 		if (this.isClosed) return;
 		this.isClosed = true;
+		this.isPaused = false;
 		this.detachSignal();
 		this.detachSignal = NOOP;
 
@@ -295,11 +330,19 @@ export class Interaction<
 		const entryRef: { current?: Entry } = {};
 		let detach: Off = NOOP;
 		let detachAbort: Off = NOOP;
+		let attached = false;
+
+		const suspend = () => {
+			if (!attached) return;
+			detach();
+			detach = NOOP;
+			attached = false;
+		};
 
 		const cancel = () => {
 			if (!active) return;
 			active = false;
-			detach();
+			suspend();
 			detachAbort();
 			if (entryRef.current) this.removeEntry(name, entryRef.current);
 		};
@@ -313,7 +356,7 @@ export class Interaction<
 		};
 
 		const listener = (event: Event) => {
-			if (!active) return;
+			if (!active || this.isPaused) return;
 
 			let element: Element | T = this.target;
 			if (options.delegate !== undefined) {
@@ -343,15 +386,26 @@ export class Interaction<
 			listenerOptions.passive = options.passive;
 		}
 
-		detach = addEventListenerWithCleanup(
-			this.target,
-			eventType,
-			listener,
-			listenerOptions,
-		);
-		const entry: Entry = { name, handler, cancel };
+		const attach = () => {
+			if (!active || this.isPaused || attached) return;
+			detach = addEventListenerWithCleanup(
+				this.target,
+				eventType,
+				listener,
+				listenerOptions,
+			);
+			attached = true;
+		};
+		const entry: Entry = {
+			name,
+			handler,
+			cancel,
+			pause: suspend,
+			resume: attach,
+		};
 		entryRef.current = entry;
 		this.addEntry(name, entry);
+		attach();
 
 		const signal = options.signal;
 		if (signal) {
@@ -389,11 +443,19 @@ export class Interaction<
 		const entryRef: { current?: Entry } = {};
 		let detach: Off = NOOP;
 		let detachAbort: Off = NOOP;
+		let attached = false;
+
+		const suspend = () => {
+			if (!attached) return;
+			detach();
+			detach = NOOP;
+			attached = false;
+		};
 
 		const cancel = () => {
 			if (!active) return;
 			active = false;
-			detach();
+			suspend();
 			detachAbort();
 			if (entryRef.current) this.removeEntry(name, entryRef.current);
 		};
@@ -407,7 +469,7 @@ export class Interaction<
 		};
 
 		const emit = (payload: unknown) => {
-			if (!active) return;
+			if (!active || this.isPaused) return;
 			try {
 				handler(payload, { element: this.target, cancel });
 			} finally {
@@ -416,10 +478,21 @@ export class Interaction<
 		};
 
 		const factory = GESTURES[name] as unknown as LooseGestureFactory;
-		detach = factory(this.target, emit, options);
-		const entry: Entry = { name, handler, cancel };
+		const attach = () => {
+			if (!active || this.isPaused || attached) return;
+			detach = factory(this.target, emit, options);
+			attached = true;
+		};
+		const entry: Entry = {
+			name,
+			handler,
+			cancel,
+			pause: suspend,
+			resume: attach,
+		};
 		entryRef.current = entry;
 		this.addEntry(name, entry);
+		attach();
 
 		const signal = options.signal;
 		if (signal) {

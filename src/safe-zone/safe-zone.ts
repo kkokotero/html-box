@@ -79,6 +79,7 @@ export class SafeZone {
 	private overlay: Overlay | null = null;
 	private running = false;
 	private isClosed = false;
+	private isPaused = false;
 	private cancelFrame: SafeZoneDisposer | null = null;
 	private detachListeners: SafeZoneDisposer = NOOP;
 	private resizeObserver: ResizeObserver | null = null;
@@ -159,6 +160,11 @@ export class SafeZone {
 	/** Whether the zone has been closed. */
 	get closed(): boolean {
 		return this.isClosed;
+	}
+
+	/** Indicates whether zone monitoring is temporarily suspended. */
+	get paused(): boolean {
+		return this.isPaused;
 	}
 
 	/** Reported state after delays, maintained while listeners or visualization are active. */
@@ -320,10 +326,36 @@ export class SafeZone {
 	/** Re-measures and evaluates synchronously, returning the undelayed inside state. */
 	update(): boolean {
 		this.assertOpen();
+		if (this.isPaused) return this.reported;
 		this.cancelFrame?.();
 		this.cancelFrame = null;
 		this.geometryDirty = true;
 		return this.evaluate();
+	}
+
+	/**
+	 * Stops observers, event listeners, polling, and pending transitions while retaining subscriptions.
+	 * The visualization remains mounted and is refreshed after resuming.
+	 *
+	 * @returns This instance for chained lifecycle control.
+	 * @throws {@link SafeZoneError} If the zone has been closed.
+	 */
+	pause(): this {
+		this.assertOpen();
+		if (this.isPaused) return this;
+		this.isPaused = true;
+		this.stop(true);
+		return this;
+	}
+
+	/** Restarts monitoring when listeners or a visualization are still active. */
+	resume(): this {
+		this.assertOpen();
+		if (!this.isPaused) return this;
+		this.isPaused = false;
+		this.geometryDirty = true;
+		this.refresh();
+		return this;
 	}
 
 	/** Removes listeners, observers, overlay, and active subscriptions. */
@@ -336,6 +368,7 @@ export class SafeZone {
 		)
 			return;
 		this.isClosed = true;
+		this.isPaused = false;
 		this.detachSignal();
 		for (const entries of this.entries.values()) {
 			for (const entry of entries) entry.cancel();
@@ -357,6 +390,7 @@ export class SafeZone {
 	private refresh(): void {
 		const shouldRun =
 			!this.isClosed &&
+			!this.isPaused &&
 			this.source !== null &&
 			(this.listenerCount() > 0 || this.overlay !== null);
 		if (shouldRun && !this.running) this.start();
@@ -369,13 +403,13 @@ export class SafeZone {
 	};
 
 	private schedule(): void {
-		if (!this.running || this.cancelFrame) return;
+		if (!this.running || this.isPaused || this.cancelFrame) return;
 		this.cancelFrame = raf(this.frame);
 	}
 
 	private frame = (): void => {
 		this.cancelFrame = null;
-		if (!this.running) return;
+		if (!this.running || this.isPaused) return;
 		if (this.poll) this.geometryDirty = true;
 		if (this.geometryDirty || this.pointerDirty) this.evaluate();
 		if (this.poll) this.schedule();
@@ -440,7 +474,7 @@ export class SafeZone {
 		this.schedule();
 	}
 
-	private stop(): void {
+	private stop(preserveState = false): void {
 		this.running = false;
 		this.detachListeners();
 		this.detachListeners = NOOP;
@@ -450,13 +484,16 @@ export class SafeZone {
 		this.cancelFrame = null;
 		this.pending?.cancel();
 		this.pending = null;
-		this.rawInside = false;
-		this.reported = false;
-		this.pointer = null;
+		this.geometryDirty = true;
 		this.pointerDirty = false;
 		this.geometry = null;
 		this.subject = null;
-		this.last = null;
+		if (!preserveState) {
+			this.rawInside = false;
+			this.reported = false;
+			this.pointer = null;
+			this.last = null;
+		}
 	}
 
 	private readSubject(): Subject | null {
@@ -559,6 +596,7 @@ export class SafeZone {
 	}
 
 	private emit(event: SafeZoneEvent): void {
+		if (this.isPaused || this.isClosed) return;
 		const entries = this.entries.get(event.type);
 		if (entries) for (const entry of entries) entry.run(event);
 	}

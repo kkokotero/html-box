@@ -100,6 +100,58 @@ describe("SafeZone", () => {
 		contain.close();
 	});
 
+	it("pauses monitoring without cancelling listeners and evaluates again on resume", () => {
+		let point = { x: 5, y: 5 };
+		const target = document.createElement("div");
+		document.body.append(target);
+		setRect(target, 0, 0, 10, 10);
+		const zone = new SafeZone(() => point, target);
+		const enter = vi.fn<() => void>();
+		const leave = vi.fn<() => void>();
+		const subscription = zone.on("enter", enter);
+		zone.on("leave", leave);
+		expect(zone.update()).toBe(true);
+		expect(enter).toHaveBeenCalledTimes(1);
+
+		zone.pause();
+		point = { x: 50, y: 50 };
+		expect(zone.paused).toBe(true);
+		expect(zone.inside).toBe(true);
+		expect(zone.update()).toBe(true);
+		expect(leave).not.toHaveBeenCalled();
+		expect(subscription.active).toBe(true);
+
+		zone.resume();
+		expect(zone.update()).toBe(false);
+		expect(zone.paused).toBe(false);
+		expect(leave).toHaveBeenCalledTimes(1);
+		zone.close();
+	});
+
+	it("cancels delayed zone transitions during pause and starts a fresh delay on resume", () => {
+		vi.useFakeTimers();
+		let point = { x: 50, y: 50 };
+		const target = document.createElement("div");
+		document.body.append(target);
+		setRect(target, 0, 0, 10, 10);
+		const zone = new SafeZone(() => point, target, { enterDelay: 100 });
+		const enter = vi.fn<() => void>();
+		zone.on("enter", enter);
+
+		point = { x: 5, y: 5 };
+		zone.update();
+		vi.advanceTimersByTime(50);
+		zone.pause();
+		vi.advanceTimersByTime(500);
+		expect(enter).not.toHaveBeenCalled();
+
+		zone.resume();
+		zone.update();
+		vi.advanceTimersByTime(100);
+		expect(enter).toHaveBeenCalledOnce();
+		zone.close();
+	});
+
 	it("emits enter, inside, and leave events for a point callback source", () => {
 		let point = { x: 5, y: 5 };
 		const target = document.createElement("div");

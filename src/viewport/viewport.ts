@@ -58,6 +58,7 @@ export class Viewport<T extends Element = Element> {
 
 	private readonly entries = new Map<ViewportEventName, Set<Entry>>();
 	private isClosed = false;
+	private isPaused = false;
 	private detachSignal: Off = noop;
 
 	// Observers and listeners are activated only when required by subscriptions.
@@ -123,26 +124,7 @@ export class Viewport<T extends Element = Element> {
 			this.detachSignal = () => signal.removeEventListener("abort", onAbort);
 		}
 
-		// Keep visibility current while the instance is open.
-		if (typeof IntersectionObserver !== "undefined") {
-			try {
-				this.io = new IntersectionObserver(
-					(entries) => this.onIntersect(entries),
-					{
-						threshold: threshold > 0 ? [0, threshold] : [0],
-						...(this.rootMargin === undefined
-							? {}
-							: { rootMargin: this.rootMargin }),
-					},
-				);
-			} catch {
-				throw new ViewportError(
-					ViewportErrorCode.InvalidOption,
-					`Invalid \`rootMargin\`: "${String(this.rootMargin)}".`,
-				);
-			}
-			this.io.observe(this.node);
-		}
+		this.observeVisibility();
 	}
 
 	/* Live measurements */
@@ -155,6 +137,11 @@ export class Viewport<T extends Element = Element> {
 	/** Whether this instance has been closed. */
 	get closed(): boolean {
 		return this.isClosed;
+	}
+
+	/** Indicates whether viewport observers and event monitoring are suspended. */
+	get paused(): boolean {
+		return this.isPaused;
 	}
 
 	/** Current visual size, measured on each read. */
@@ -326,11 +313,49 @@ export class Viewport<T extends Element = Element> {
 
 	/* Lifecycle */
 
+	/**
+	 * Disconnects observers and event listeners while retaining subscriptions.
+	 *
+	 * @returns This instance for chained lifecycle control.
+	 * @throws {@link ViewportError} If the instance has been closed.
+	 */
+	pause(): this {
+		this.assertOpen();
+		if (this.isPaused) return this;
+		this.isPaused = true;
+		this.io?.disconnect();
+		this.io = null;
+		this.ioReady = false;
+		this.ro?.disconnect();
+		this.ro = null;
+		this.detachScroll();
+		this.detachScroll = noop;
+		this.cancelFrame?.();
+		this.cancelFrame = null;
+		this.pendingCause = null;
+		this.polling = false;
+		this.tracksSize = false;
+		this.tracksMove = false;
+		this.lastPosition = null;
+		return this;
+	}
+
+	/** Recreates the visibility observer and resumes monitoring for active subscriptions. */
+	resume(): this {
+		this.assertOpen();
+		if (!this.isPaused) return this;
+		this.isPaused = false;
+		this.observeVisibility();
+		this.sync();
+		return this;
+	}
+
 	/** Disconnects observers and listeners and cancels every subscription. */
 	close(): void {
 		if (this.isClosed && this.entries.size === 0 && !this.io && !this.ro)
 			return;
 		this.isClosed = true;
+		this.isPaused = false;
 		this.detachSignal();
 		for (const set of this.entries.values()) {
 			for (const entry of set) entry.cancel();
@@ -387,10 +412,44 @@ export class Viewport<T extends Element = Element> {
 		};
 	}
 
+	private observeVisibility(): void {
+		const node = this.node;
+		if (
+			!node ||
+			this.isClosed ||
+			this.isPaused ||
+			typeof document === "undefined" ||
+			typeof IntersectionObserver === "undefined"
+		)
+			return;
+
+		let observer: IntersectionObserver;
+		try {
+			observer = new IntersectionObserver(
+				(entries) => {
+					if (this.io === observer) this.onIntersect(entries);
+				},
+				{
+					threshold: this.threshold > 0 ? [0, this.threshold] : [0],
+					...(this.rootMargin === undefined
+						? {}
+						: { rootMargin: this.rootMargin }),
+				},
+			);
+		} catch {
+			throw new ViewportError(
+				ViewportErrorCode.InvalidOption,
+				`Invalid \`rootMargin\`: "${String(this.rootMargin)}".`,
+			);
+		}
+		this.io = observer;
+		observer.observe(node);
+	}
+
 	/** Activates only the mechanisms required by current subscriptions. */
 	private sync(): void {
 		const node = this.node;
-		if (!node || typeof document === "undefined") return;
+		if (!node || this.isPaused || typeof document === "undefined") return;
 
 		const resizeN = this.listenerCount("resize");
 		const moveN = this.listenerCount("move");
@@ -422,7 +481,7 @@ export class Viewport<T extends Element = Element> {
 			this.ro = null;
 		}
 
-		// Scroll + resize de ventana: para `move`, o para enter/leave si no hay IntersectionObserver.
+		// Scroll and window resize trigger movement checks or visibility fallback checks.
 		const wantScroll = wantMove || (!this.io && visibilityN > 0);
 		if (wantScroll && this.detachScroll === noop) {
 			const onScroll = (event: Event) => {
@@ -437,7 +496,7 @@ export class Viewport<T extends Element = Element> {
 				passive: true,
 			});
 			window.addEventListener("resize", onResize, { passive: true });
-			if (!this.io) this.schedule("update"); // sin IntersectionObserver: estado inicial de enter/leave
+			if (!this.io) this.schedule("update"); // Initialize visibility when IntersectionObserver is unavailable.
 			this.detachScroll = () => {
 				document.removeEventListener("scroll", onScroll, { capture: true });
 				window.removeEventListener("resize", onResize);
@@ -475,10 +534,10 @@ export class Viewport<T extends Element = Element> {
 		});
 	}
 
-	/** Una sola lectura de layout; emite `resize` y `move` si procede. */
+	/** Reads layout once and emits `resize` or `move` events when values changed. */
 	private check(cause: MoveCause): void {
 		const node = this.node;
-		if (!node || this.isClosed) return;
+		if (!node || this.isClosed || this.isPaused) return;
 
 		const rect = node.getBoundingClientRect();
 		const size: Size = { width: rect.width, height: rect.height };
@@ -527,7 +586,7 @@ export class Viewport<T extends Element = Element> {
 
 	private onIntersect(entries: IntersectionObserverEntry[]): void {
 		const entry = entries[entries.length - 1];
-		if (!entry || this.isClosed) return;
+		if (!entry || this.isClosed || this.isPaused) return;
 		this.ioReady = true;
 		this.reportedRatio = entry.intersectionRatio;
 		const visible =

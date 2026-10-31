@@ -150,7 +150,7 @@ if (hasDocument) {
 
 ## Interaction API
 
-`Interaction` groups listeners for a single target. Native events use kebab-case aliases such as `double-click` and `key-down`. Every registration returns a subscription that can be cancelled independently, and `close()` cancels every listener owned by the instance.
+`Interaction` groups listeners for a single target. Native events use kebab-case aliases such as `double-click` and `key-down`. Every registration returns a subscription that can be cancelled independently. `pause()` temporarily detaches listeners and gestures without cancelling subscriptions; `resume()` restores them, while `close()` permanently cancels them.
 
 ### Native events
 
@@ -259,13 +259,14 @@ interaction.off("key-down", onKeyDown);
 controller.abort(); // closes the interaction and removes remaining listeners
 ```
 
-| Method                          | Result                                                    |
-| ------------------------------- | --------------------------------------------------------- |
-| `on(name, handler, options?)`   | Registers a listener and returns a `Subscription`         |
-| `once(name, handler, options?)` | Registers a listener that runs at most once               |
-| `off(name, handler?)`           | Removes listeners for an event                            |
-| `emit(name, detail?, init?)`    | Dispatches a typed `CustomEvent` from the target          |
-| `close()`                       | Cancels all listeners and marks the interaction as closed |
+| Method                          | Result                                                         |
+| ------------------------------- | -------------------------------------------------------------- |
+| `on(name, handler, options?)`   | Registers a listener and returns a `Subscription`              |
+| `once(name, handler, options?)` | Registers a listener that runs at most once                    |
+| `off(name, handler?)`           | Removes listeners for an event                                 |
+| `emit(name, detail?, init?)`    | Dispatches a typed `CustomEvent` from the target               |
+| `close()`                       | Cancels all listeners and marks the interaction as closed      |
+| `pause()` / `resume()`          | Temporarily suspends or restores listener and gesture dispatch |
 
 ## HTML API
 
@@ -350,7 +351,7 @@ const pointer = new Pointer(canvas, {
 console.log(pointer.position?.ratioX, pointer.pointers.length);
 ```
 
-`primaryOnly` defaults to `true`, and `types` defaults to all pointer kinds. `touchAction` temporarily sets the target's CSS `touch-action` value and restores the previous value when the instance closes.
+`primaryOnly` defaults to `true`, and `types` defaults to all pointer kinds. `touchAction` temporarily sets the target's CSS `touch-action` value and restores the previous value when the instance closes or pauses. `resume()` reapplies the configured value and restores pointer tracking without recreating the instance.
 
 ### Proximity
 
@@ -375,15 +376,16 @@ const closest = pointer.nearest(document.querySelectorAll("[data-target]"), {
 
 `close()` removes DOM listeners, releases captures, restores `touch-action`, cancels subscriptions, and clears tracked state. It is safe to call more than once. An instance created with a `null` or `undefined` target is inert, and an `AbortSignal` can close the instance automatically.
 
-| Member                                                          | Result                                       |
-| --------------------------------------------------------------- | -------------------------------------------- |
-| `on(name, handler, options?)` / `once(name, handler, options?)` | Subscribe to typed pointer samples           |
-| `off(name, handler?)`                                           | Remove listeners for an event                |
-| `position` / `pointers` / `pressed`                             | Read current pointer state                   |
-| `capture(id?)` / `release(id?)` / `hasCapture(id?)`             | Manage pointer capture                       |
-| `proximity(element, options?)` / `nearest(elements, options?)`  | Measure pointer proximity                    |
-| `listenerCount(name?)`                                          | Count active listeners                       |
-| `close()`                                                       | Remove listeners and release owned resources |
+| Member                                                          | Result                                        |
+| --------------------------------------------------------------- | --------------------------------------------- |
+| `on(name, handler, options?)` / `once(name, handler, options?)` | Subscribe to typed pointer samples            |
+| `off(name, handler?)`                                           | Remove listeners for an event                 |
+| `position` / `pointers` / `pressed`                             | Read current pointer state                    |
+| `capture(id?)` / `release(id?)` / `hasCapture(id?)`             | Manage pointer capture                        |
+| `proximity(element, options?)` / `nearest(elements, options?)`  | Measure pointer proximity                     |
+| `listenerCount(name?)`                                          | Count active listeners                        |
+| `close()`                                                       | Remove listeners and release owned resources  |
+| `pause()` / `resume()`                                          | Suspend or restore tracking and subscriptions |
 
 ## SafeZone API
 
@@ -410,7 +412,7 @@ zone.close();
 
 Use `mode` for element sources: `"intersect"` checks for any overlap, `"contain"` requires the source rectangle to fit inside the zone, and `"center"` tests only its center. `padding` accepts a number or per-edge values. `enterDelay` and `leaveDelay` add transition delays. `poll: true` re-measures every animation frame while the zone is active.
 
-The zone starts observing only while it has listeners or a visualization overlay. It batches evaluation with `requestAnimationFrame`, tracks layout changes through scroll, resize, and `ResizeObserver`, and supports `AbortSignal` cleanup. `show()` adds an SVG debug overlay; `hide()` removes it. This is a geometry and event utility, not a DOM renderer.
+The zone starts observing only while it has listeners or a visualization overlay. It batches evaluation with `requestAnimationFrame`, tracks layout changes through scroll, resize, and `ResizeObserver`, and supports `AbortSignal` cleanup. `pause()` stops monitoring and cancels pending transitions while keeping subscriptions and the overlay; `resume()` re-measures and continues. `show()` adds an SVG debug overlay; `hide()` removes it. This is a geometry and event utility, not a DOM renderer.
 
 | API                                                             | Result                                                   |
 | --------------------------------------------------------------- | -------------------------------------------------------- |
@@ -420,6 +422,7 @@ The zone starts observing only while it has listeners or a visualization overlay
 | `measure()` / `contains(x, y)` / `update()`                     | Reads geometry or evaluates synchronously                |
 | `show(options?)` / `hide()`                                     | Controls the SVG visualization                           |
 | `close()`                                                       | Removes listeners, observers, overlay, and subscriptions |
+| `pause()` / `resume()`                                          | Suspends or restarts zone monitoring                     |
 | `SafeZoneError` / `SafeZoneErrorCode`                           | Error class and machine-readable error enum              |
 
 ## Viewport API
@@ -450,7 +453,7 @@ viewport.on("leave", ({ ratio, side }) => console.log("left", ratio, side));
 viewport.close();
 ```
 
-`move` events are coalesced to at most one check per animation frame and are triggered by relevant scroll, window resize, or element resize events. Use `poll: true` or call `update()` to detect position changes caused by transforms or animations that do not trigger browser events. Event-specific observers and listeners are active only while relevant subscriptions exist. `AbortSignal` can close the instance or cancel individual subscriptions.
+`move` events are coalesced to at most one check per animation frame and are triggered by relevant scroll, window resize, or element resize events. Use `poll: true` or call `update()` to detect position changes caused by transforms or animations that do not trigger browser events. Event-specific observers and listeners are active only while relevant subscriptions exist. `pause()` disconnects observers and listeners without cancelling subscriptions; `resume()` restores monitoring and resets movement baselines. `AbortSignal` can close the instance or cancel individual subscriptions.
 
 | API                                                             | Result                                              |
 | --------------------------------------------------------------- | --------------------------------------------------- |
@@ -460,11 +463,12 @@ viewport.close();
 | `on(name, handler, options?)` / `once(name, handler, options?)` | Subscribes to `resize`, `move`, `enter`, or `leave` |
 | `off(name, handler?)` / `listenerCount(name?)`                  | Removes or counts event subscriptions               |
 | `close()`                                                       | Disconnects observers and cancels subscriptions     |
+| `pause()` / `resume()`                                          | Suspends or restores observers and event monitoring |
 | `ViewportError` / `ViewportErrorCode`                           | Error class and machine-readable error enum         |
 
 ## Keyboard API
 
-`Keyboard` registers typed shortcuts on an element, `document`, or `window`. Shortcut strings are normalized and validated at runtime, while TypeScript validates literal shortcuts and provides editor suggestions for individual keys and common modifier combinations.
+`Keyboard` registers typed shortcuts on an element, `document`, or `window`. Shortcut strings are normalized and validated at runtime, while TypeScript validates literal shortcuts and provides editor suggestions for individual keys and common modifier combinations. `pause()` detaches native keyboard listeners while retaining shortcuts and keypress subscriptions; `resume()` reattaches them.
 
 ```ts
 import { Keyboard } from "html-tools/keyboard";
@@ -505,6 +509,7 @@ By default, shortcuts require an exact modifier match and ignore most printable 
 | `off(shortcut?, handler?)` / `has(shortcut)`    | Removes or checks shortcut registrations         |
 | `Keyboard.matches(event, shortcut, options?)`   | Tests an event without creating a listener       |
 | `close()`                                       | Removes all listeners and shortcuts              |
+| `pause()` / `resume()`                          | Suspends or restores native keyboard dispatch    |
 | `KeyboardError` / `KeyboardErrorCode`           | Error class and machine-readable error enum      |
 
 ## Design Principles

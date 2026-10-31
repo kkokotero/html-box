@@ -61,6 +61,25 @@ describe("Interaction", () => {
 		interaction.close();
 	});
 
+	it("pauses dispatch without cancelling subscriptions and resumes them", () => {
+		const target = document.createElement("button");
+		const interaction = new Interaction(target);
+		const handler = vi.fn<() => void>();
+		const subscription = interaction.on("click", handler);
+
+		interaction.pause();
+		target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(interaction.paused).toBe(true);
+		expect(subscription.active).toBe(true);
+		expect(handler).not.toHaveBeenCalled();
+
+		interaction.resume();
+		target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(interaction.paused).toBe(false);
+		expect(handler).toHaveBeenCalledTimes(1);
+		interaction.close();
+	});
+
 	it("removes a listener after its first execution", () => {
 		const target = document.createElement("button");
 		const interaction = new Interaction(target);
@@ -302,6 +321,27 @@ describe("Interaction", () => {
 		target.dispatchEvent(
 			pointerEvent("pointerup", { clientX: 20, clientY: 30 }),
 		);
+		interaction.close();
+	});
+
+	it("cancels gesture timers while paused and restarts the gesture on resume", () => {
+		vi.useFakeTimers();
+		const target = document.createElement("div");
+		const interaction = new Interaction(target);
+		const handler = vi.fn<() => void>();
+		const subscription = interaction.on("long-press", handler, { delay: 100 });
+
+		target.dispatchEvent(pointerEvent("pointerdown"));
+		vi.advanceTimersByTime(50);
+		interaction.pause();
+		vi.advanceTimersByTime(500);
+		expect(handler).not.toHaveBeenCalled();
+		expect(subscription.active).toBe(true);
+
+		interaction.resume();
+		target.dispatchEvent(pointerEvent("pointerdown"));
+		vi.advanceTimersByTime(100);
+		expect(handler).toHaveBeenCalledOnce();
 		interaction.close();
 	});
 

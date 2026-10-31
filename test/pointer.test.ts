@@ -54,6 +54,46 @@ describe("Pointer", () => {
 		pointer.close();
 	});
 
+	it("pauses event tracking, clears live pointer state, and resumes subscriptions", () => {
+		const target = document.createElement("div");
+		const pointer = new Pointer(target);
+		const handler = vi.fn<() => void>();
+		const subscription = pointer.on("move", handler);
+
+		dispatchPointerEvent(target, "pointermove", { clientX: 10, clientY: 20 });
+		expect(handler).toHaveBeenCalledTimes(1);
+		expect(pointer.position?.x).toBe(10);
+
+		pointer.pause();
+		dispatchPointerEvent(target, "pointermove", { clientX: 30, clientY: 40 });
+		expect(pointer.paused).toBe(true);
+		expect(pointer.position).toBeNull();
+		expect(pointer.pointers).toEqual([]);
+		expect(pointer.pressed).toBe(false);
+		expect(subscription.active).toBe(true);
+		expect(handler).toHaveBeenCalledTimes(1);
+
+		pointer.resume();
+		dispatchPointerEvent(target, "pointermove", { clientX: 50, clientY: 60 });
+		expect(pointer.paused).toBe(false);
+		expect(pointer.position?.x).toBe(50);
+		expect(handler).toHaveBeenCalledTimes(2);
+		pointer.close();
+	});
+
+	it("restores and reapplies touch-action across pause and resume", () => {
+		const target = document.createElement("div");
+		target.style.touchAction = "pan-y";
+		const pointer = new Pointer(target, { touchAction: "none" });
+		expect(target.style.touchAction).toBe("none");
+		pointer.pause();
+		expect(target.style.touchAction).toBe("pan-y");
+		pointer.resume();
+		expect(target.style.touchAction).toBe("none");
+		pointer.close();
+		expect(target.style.touchAction).toBe("pan-y");
+	});
+
 	it("tracks typed samples, coordinates, movement, and displacement", () => {
 		const target = document.createElement("div");
 		setRect(target, { left: 10, top: 20, width: 200, height: 100 });
