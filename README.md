@@ -21,6 +21,7 @@ npm install html-box
 | Import                     | What it helps with                               |
 | -------------------------- | ------------------------------------------------ |
 | `html-box/query`           | Find and scope DOM queries                       |
+| `html-box/reactive`        | Manage reactive values and derived state         |
 | `html-box/element`         | Create and manipulate HTML and SVG elements      |
 | `html-box/form`            | Read, reset, validate, and serialize forms       |
 | `html-box/html`            | Render safe, typed HTML templates                |
@@ -192,6 +193,31 @@ interval.cancel();
 ```
 
 `Scheduler.nextFrame` runs after two animation frames. `raf` uses a timer fallback where animation frame APIs are unavailable.
+
+## Reactive values
+
+`Reactive` stores values without proxies or automatic dependency tracking. Update values with `set`, `update`, `patch`, or `mutate`; subscriptions run synchronously, and `batch` groups related changes. Derived values declare their sources explicitly and are read-only.
+
+```ts
+import { Reactive } from "html-box/reactive";
+
+const price = Reactive.create(12);
+const quantity = Reactive.create(2);
+const total = Reactive.derive(
+	[price, quantity],
+	(unitPrice, count) => unitPrice * count,
+);
+
+total.subscribe((value) => console.log(value));
+Reactive.batch(() => {
+	price.set(15);
+	quantity.set(3);
+}); // Notifies once with 45
+
+total.close();
+```
+
+Subscriptions and derived values can be paused or closed when no longer needed. Direct object mutations are not observed; use `mutate()` to change an object in place and notify subscribers.
 
 ## View transitions
 
