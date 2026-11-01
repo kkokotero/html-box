@@ -1,13 +1,17 @@
-import { INACTIVE_SUBSCRIPTION, NOOP } from "./constants";
+import { INACTIVE_SUBSCRIPTION, MAX_ROUNDS, NOOP } from "./constants";
 import type { Change, DerivedInit, Sub } from "./internal-types";
 import { ReactiveError } from "./reactive-error";
 import {
 	beginBatch,
+	beginDelivery,
+	createCycleError,
 	endBatch,
+	endDelivery,
 	flushDirty,
 	forgetDirty,
 	hasDirty,
 	isBatching,
+	isDelivering,
 	markDirty,
 } from "./scheduling";
 import {
@@ -782,7 +786,11 @@ export class Reactive<T> {
 	 * sources and are recomputed only once per change.
 	 */
 	private static flush(): void {
-		flushDirty((reactive) => reactive.process());
+		if (isDelivering()) return;
+		flushDirty(
+			(reactive) => reactive.process(),
+			(reactive) => reactive.discardQueued(),
+		);
 	}
 
 	/** Recomputes a stale value and dispatches its queued changes. */
@@ -818,11 +826,20 @@ export class Reactive<T> {
 			}
 		}
 
+		let rounds = 0;
 		while (this.queue.length > 0) {
+			if (rounds >= MAX_ROUNDS) throw createCycleError();
+			rounds++;
 			const change = this.queue.shift() as Change<T>;
 			for (const sub of Array.from(this.subs))
 				this.notifySubscriber(sub, change);
 		}
+	}
+
+	/** Discards queued notifications after a failed flush. */
+	private discardQueued(): void {
+		this.queue.length = 0;
+		this.coalesce = false;
 	}
 
 	/** Delivers one change to a subscription, respecting pauses and selection. */
@@ -856,11 +873,16 @@ export class Reactive<T> {
 		const previous = sub.delivered;
 		sub.delivered = value;
 		if (sub.once) sub.handle.cancel();
+		beginDelivery();
 		try {
-			sub.handler(value, previous, sub.handle);
-		} catch (error) {
-			// One failing handler must not prevent the others from running.
-			this.report(error);
+			try {
+				sub.handler(value, previous, sub.handle);
+			} catch (error) {
+				// One failing handler must not prevent the others from running.
+				this.report(error);
+			}
+		} finally {
+			if (endDelivery()) Reactive.flush();
 		}
 	}
 }

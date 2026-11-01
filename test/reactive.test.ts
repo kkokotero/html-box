@@ -121,6 +121,37 @@ describe("Reactive", () => {
 		expect(handler).toHaveBeenCalledOnce();
 	});
 
+	it("stops a subscriber feedback loop and clears pending notifications", () => {
+		const state = Reactive.create(0);
+		const subscription = state.subscribe((value) => state.set(value + 1));
+
+		expect(() => state.set(1)).toThrow(
+			expect.objectContaining({ code: ReactiveErrorCode.Cycle }),
+		);
+		subscription.cancel();
+		expect(() => state.set(2000)).not.toThrow();
+		expect(state.get()).toBe(2000);
+	}, 5000);
+
+	it("bounds reentrant updates started by an immediate subscription", () => {
+		const state = Reactive.create(0);
+
+		expect(() =>
+			state.subscribe((value) => state.set(value + 1), { immediate: true }),
+		).toThrow(expect.objectContaining({ code: ReactiveErrorCode.Cycle }));
+	}, 5000);
+
+	it("limits cycles that alternate between reactive values", () => {
+		const first = Reactive.create(0);
+		const second = Reactive.create(0);
+		first.subscribe((value) => second.set(value + 1));
+		second.subscribe((value) => first.set(value + 1));
+
+		expect(() => first.set(1)).toThrow(
+			expect.objectContaining({ code: ReactiveErrorCode.Cycle }),
+		);
+	}, 5000);
+
 	it("derives read-only values and updates diamond graphs without glitches", () => {
 		const left = Reactive.create(1);
 		const right = Reactive.create(2);
