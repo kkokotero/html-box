@@ -12,6 +12,7 @@ export default defineConfig({
 		scheduler: "src/scheduler/index.ts",
 		element: "src/element/index.ts",
 		form: "src/form/index.ts",
+		"view-transition": "src/view-transition/index.ts",
 	},
 	target: "esnext",
 	format: ["esm"],

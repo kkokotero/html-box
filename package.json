@@ -76,6 +76,10 @@
 		"./form": {
 			"types": "./dist/form.d.ts",
 			"default": "./dist/form.js"
+		},
+		"./view-transition": {
+			"types": "./dist/view-transition.d.ts",
+			"default": "./dist/view-transition.js"
 		}
 	},
 	"publishConfig": {

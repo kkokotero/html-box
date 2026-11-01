@@ -18,18 +18,19 @@ npm install html-box
 
 ## Modules
 
-| Import                 | What it helps with                               |
-| ---------------------- | ------------------------------------------------ |
-| `html-box/query`       | Find and scope DOM queries                       |
-| `html-box/element`     | Create and manipulate HTML and SVG elements      |
-| `html-box/form`        | Read, reset, validate, and serialize forms       |
-| `html-box/html`        | Render safe, typed HTML templates                |
-| `html-box/interaction` | Manage DOM events and common gestures            |
-| `html-box/keyboard`    | Register typed keyboard shortcuts                |
-| `html-box/pointer`     | Track pointer input and positions                |
-| `html-box/safe-zone`   | Detect when a pointer or element enters a region |
-| `html-box/viewport`    | Read and observe element geometry                |
-| `html-box/scheduler`   | Schedule, repeat, and cancel work                |
+| Import                     | What it helps with                               |
+| -------------------------- | ------------------------------------------------ |
+| `html-box/query`           | Find and scope DOM queries                       |
+| `html-box/element`         | Create and manipulate HTML and SVG elements      |
+| `html-box/form`            | Read, reset, validate, and serialize forms       |
+| `html-box/html`            | Render safe, typed HTML templates                |
+| `html-box/interaction`     | Manage DOM events and common gestures            |
+| `html-box/keyboard`        | Register typed keyboard shortcuts                |
+| `html-box/pointer`         | Track pointer input and positions                |
+| `html-box/safe-zone`       | Detect when a pointer or element enters a region |
+| `html-box/viewport`        | Read and observe element geometry                |
+| `html-box/scheduler`       | Schedule, repeat, and cancel work                |
+| `html-box/view-transition` | Animate DOM updates with the View Transition API |
 
 ## Quick start
 
@@ -191,6 +192,82 @@ interval.cancel();
 ```
 
 `Scheduler.nextFrame` runs after two animation frames. `raf` uses a timer fallback where animation frame APIs are unavailable.
+
+## View transitions
+
+`ViewTransition` wraps the browser View Transition API for document or element scopes. It returns the native transition instance, supports transition types and lifecycle callbacks, and respects `prefers-reduced-motion` by default. When the API is unavailable, the DOM update still runs without animation and `ready` rejects with an `AbortError`, so animation code can be skipped safely.
+
+```ts
+import { ReducedMotion, ViewTransition } from "html-box/view-transition";
+
+const transition = ViewTransition.start(() => renderPage(), {
+	types: ["navigation"],
+	reducedMotion: ReducedMotion.Respect,
+});
+
+await transition.ready.then(animatePseudoElements, () => {});
+ViewTransition.skip();
+```
+
+### Styling with CSS
+
+The browser builds a pseudo-element tree for each transition. Style the root snapshot with `::view-transition-old(root)` and `::view-transition-new(root)`:
+
+```css
+::view-transition-old(root) {
+	animation: fade-out 160ms ease-out;
+}
+
+::view-transition-new(root) {
+	animation: fade-in 220ms ease-in;
+}
+```
+
+To animate a specific element, give it a unique `view-transition-name` and target its group and snapshots:
+
+```css
+.hero {
+	view-transition-name: hero;
+}
+
+::view-transition-group(hero) {
+	animation-duration: 300ms;
+}
+
+::view-transition-old(hero) {
+	animation: slide-out 300ms ease;
+}
+
+::view-transition-new(hero) {
+	animation: slide-in 300ms ease;
+}
+```
+
+Transition types scope styles to a specific call:
+
+```ts
+ViewTransition.start(update, { types: ["navigation"] });
+```
+
+```css
+html:active-view-transition-type(navigation)::view-transition-old(root) {
+	animation-name: slide-out;
+}
+```
+
+If you use `ReducedMotion.Ignore`, disable animations in CSS when the user prefers reduced motion:
+
+```css
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
+	}
+}
+```
+
+View transition names must be unique in the rendered document. Element-scoped transitions only capture the element subtree, but their names follow the same rule.
 
 ## Lifecycle and environments
 
