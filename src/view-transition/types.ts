@@ -118,10 +118,33 @@ export interface ViewTransitionOptions {
 	/**
 	 * Transition types used by `:active-view-transition-type(...)` selectors.
 	 *
-	 * Duplicate values are removed. Browsers without type support ignore them
-	 * and still run the transition.
+	 * Duplicate values are removed. The first type is also used as the default
+	 * CSS `view-transition-name` for the transition host or the shared
+	 * `from`/`to` elements, so selectors such as
+	 * `::view-transition-old(navigation)` can use the same name. Browsers
+	 * without type support ignore the type matching but still apply the name.
 	 */
 	types?: readonly string[];
+
+	/**
+	 * CSS `view-transition-name` applied to the transition host or to the
+	 * `from`/`to` pair.
+	 *
+	 * Defaults to the first entry in {@link ViewTransitionOptions.types}.
+	 * Set it to `null` to keep the names declared in author CSS. The previous
+	 * inline value is restored when the transition finishes.
+	 */
+	name?: string | null;
+
+	/**
+	 * Keeps the page interactive while the transition runs.
+	 *
+	 * When `true` (the default), the wrapper adds
+	 * `::view-transition { pointer-events: none; }` so clicks and other pointer
+	 * input reach the page instead of being captured by the transition overlay.
+	 * Set it to `false` when your CSS already handles interaction.
+	 */
+	interactive?: boolean;
 
 	/**
 	 * Runs synchronously when the library starts the operation, before the

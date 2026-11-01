@@ -211,49 +211,62 @@ ViewTransition.skip();
 
 ### Styling with CSS
 
-The browser builds a pseudo-element tree for each transition. Style the root snapshot with `::view-transition-old(root)` and `::view-transition-new(root)`:
-
-```css
-::view-transition-old(root) {
-	animation: fade-out 160ms ease-out;
-}
-
-::view-transition-new(root) {
-	animation: fade-in 220ms ease-in;
-}
-```
-
-To animate a specific element, give it a unique `view-transition-name` and target its group and snapshots:
-
-```css
-.hero {
-	view-transition-name: hero;
-}
-
-::view-transition-group(hero) {
-	animation-duration: 300ms;
-}
-
-::view-transition-old(hero) {
-	animation: slide-out 300ms ease;
-}
-
-::view-transition-new(hero) {
-	animation: slide-in 300ms ease;
-}
-```
-
-Transition types scope styles to a specific call:
+The first transition type is also applied to the transition host as its CSS `view-transition-name`. For document transitions the host is the root element; for `start(element, ...)` it is the element. With `start(from, to, ...)`, the type is applied to both elements at their respective capture phases. This lets CSS reuse the type name directly:
 
 ```ts
 ViewTransition.start(update, { types: ["navigation"] });
 ```
 
 ```css
-html:active-view-transition-type(navigation)::view-transition-old(root) {
+::view-transition-old(navigation) {
+	animation: fade-out 160ms ease-out;
+}
+
+::view-transition-new(navigation) {
+	animation: fade-in 220ms ease-in;
+}
+```
+
+Without `types`, the browser's default `root` name is used. Pass `name` to choose a different CSS name, or `name: null` to keep the names declared in your stylesheet:
+
+```ts
+ViewTransition.start(update, { types: ["navigation"], name: "page" });
+ViewTransition.start(element, update, { name: null });
+```
+
+For shared-element transitions, pass the outgoing and incoming elements. The same type name is applied to `from` before the old snapshot and to `to` after the update callback, so both sides match:
+
+```ts
+ViewTransition.start(fromCard, toCard, update, { types: ["card"] });
+```
+
+Both arguments must be elements. `to` can be detached or hidden before the update, but the callback must insert it before it resolves.
+
+```css
+::view-transition-group(card) {
+	animation-duration: 300ms;
+}
+
+::view-transition-old(card) {
+	animation: slide-out 300ms ease;
+}
+
+::view-transition-new(card) {
+	animation: slide-in 300ms ease;
+}
+```
+
+Transition types also scope styles to a specific call:
+
+```css
+html:active-view-transition-type(navigation)::view-transition-old(navigation) {
 	animation-name: slide-out;
 }
 ```
+
+### Interaction during transitions
+
+By default the page remains interactive while the animation runs. The wrapper adds `::view-transition { pointer-events: none; }` once, so pointer input reaches the app instead of being captured by the transition overlay. Set `interactive: false` if your CSS already handles this.
 
 If you use `ReducedMotion.Ignore`, disable animations in CSS when the user prefers reduced motion:
 

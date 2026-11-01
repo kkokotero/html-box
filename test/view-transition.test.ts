@@ -288,6 +288,211 @@ describe("ViewTransition", () => {
 		expect(ViewTransition.skip()).toBe(false);
 	});
 
+	it("uses the first type as the CSS name and restores the previous value", async () => {
+		const start = installDocumentTransition((argument) =>
+			createNativeTransition(updateFrom(argument)),
+		);
+		const root = document.documentElement;
+		root.style.setProperty("view-transition-name", "previous");
+
+		const first = ViewTransition.start(() => undefined, {
+			types: ["navigation", "modal"],
+		});
+
+		expect(start).toHaveBeenCalledOnce();
+		expect(root.style.getPropertyValue("view-transition-name")).toBe(
+			"navigation",
+		);
+		await expect(first.finished).resolves.toBeUndefined();
+		expect(root.style.getPropertyValue("view-transition-name")).toBe(
+			"previous",
+		);
+
+		const second = ViewTransition.start(() => undefined, {
+			types: ["navigation"],
+			name: "page",
+		});
+
+		expect(root.style.getPropertyValue("view-transition-name")).toBe("page");
+		await expect(second.finished).resolves.toBeUndefined();
+		expect(root.style.getPropertyValue("view-transition-name")).toBe(
+			"previous",
+		);
+
+		const third = ViewTransition.start(() => undefined, {
+			types: ["navigation"],
+			name: null,
+		});
+
+		expect(root.style.getPropertyValue("view-transition-name")).toBe(
+			"previous",
+		);
+		await expect(third.finished).resolves.toBeUndefined();
+		root.style.removeProperty("view-transition-name");
+	});
+
+	it("applies the type name to from and to across the update", async () => {
+		let resolveFinished!: () => void;
+		const finished = new Promise<void>((resolve) => {
+			resolveFinished = resolve;
+		});
+		installDocumentTransition((argument) =>
+			createNativeTransition(updateFrom(argument), { finished }),
+		);
+		const from = document.createElement("div");
+		const to = document.createElement("div");
+		document.body.append(from);
+		from.style.setProperty("view-transition-name", "from-before");
+		to.style.setProperty("view-transition-name", "to-before");
+		const update = vi.fn<() => void>(() => {
+			document.body.append(to);
+		});
+
+		const transition = ViewTransition.start(from, to, update, {
+			types: ["card"],
+		});
+
+		expect(from.style.getPropertyValue("view-transition-name")).toBe("card");
+		expect(to.style.getPropertyValue("view-transition-name")).toBe("to-before");
+		expect(update).not.toHaveBeenCalled();
+
+		await tick();
+
+		expect(update).toHaveBeenCalledOnce();
+		expect(to.isConnected).toBe(true);
+		expect(from.style.getPropertyValue("view-transition-name")).toBe(
+			"from-before",
+		);
+		expect(to.style.getPropertyValue("view-transition-name")).toBe("card");
+
+		resolveFinished();
+		await expect(transition.finished).resolves.toBeUndefined();
+		expect(to.style.getPropertyValue("view-transition-name")).toBe("to-before");
+	});
+
+	it("supports the same element for from and to", async () => {
+		installDocumentTransition((argument) =>
+			createNativeTransition(updateFrom(argument)),
+		);
+		const element = document.createElement("div");
+		element.style.setProperty("view-transition-name", "before");
+
+		const transition = ViewTransition.start(element, element, () => undefined, {
+			types: ["card"],
+		});
+
+		expect(element.style.getPropertyValue("view-transition-name")).toBe("card");
+		await expect(transition.finished).resolves.toBeUndefined();
+		expect(element.style.getPropertyValue("view-transition-name")).toBe(
+			"before",
+		);
+		element.style.removeProperty("view-transition-name");
+	});
+
+	it("leaves pair names alone when no animation runs", async () => {
+		const from = document.createElement("div");
+		const to = document.createElement("div");
+		from.style.setProperty("view-transition-name", "from-before");
+		to.style.setProperty("view-transition-name", "to-before");
+
+		const transition = ViewTransition.start(from, to, () => undefined, {
+			types: ["card"],
+		});
+
+		expect(from.style.getPropertyValue("view-transition-name")).toBe(
+			"from-before",
+		);
+		expect(to.style.getPropertyValue("view-transition-name")).toBe("to-before");
+		await expect(transition.finished).resolves.toBeUndefined();
+		expect(from.style.getPropertyValue("view-transition-name")).toBe(
+			"from-before",
+		);
+		expect(to.style.getPropertyValue("view-transition-name")).toBe("to-before");
+	});
+
+	it("applies the type name to an element-scoped host", async () => {
+		installElementTransition((argument) =>
+			createNativeTransition(updateFrom(argument)),
+		);
+		const element = document.createElement("div");
+		element.style.setProperty("view-transition-name", "before");
+
+		const transition = ViewTransition.start(element, () => undefined, {
+			types: ["card"],
+		});
+
+		expect(element.style.getPropertyValue("view-transition-name")).toBe("card");
+		await expect(transition.finished).resolves.toBeUndefined();
+		expect(element.style.getPropertyValue("view-transition-name")).toBe(
+			"before",
+		);
+		element.style.removeProperty("view-transition-name");
+	});
+
+	it("keeps author CSS names when no animation runs", async () => {
+		const root = document.documentElement;
+		root.style.setProperty("view-transition-name", "author");
+
+		const transition = ViewTransition.start(() => undefined, {
+			types: ["navigation"],
+		});
+
+		expect(root.style.getPropertyValue("view-transition-name")).toBe("author");
+		expect(
+			document.getElementById("html-box-view-transition-interactive"),
+		).toBeNull();
+		await expect(transition.finished).resolves.toBeUndefined();
+		expect(root.style.getPropertyValue("view-transition-name")).toBe("author");
+		root.style.removeProperty("view-transition-name");
+	});
+
+	it("restores the CSS name when the browser fails to start", async () => {
+		const error = new Error("cannot start");
+		install(document, "startViewTransition", () => {
+			throw error;
+		});
+		const root = document.documentElement;
+		root.style.setProperty("view-transition-name", "author");
+		const onError = vi.fn<(value: unknown) => void>();
+
+		const transition = ViewTransition.start(() => undefined, {
+			types: ["navigation"],
+			onError,
+		});
+
+		expect(root.style.getPropertyValue("view-transition-name")).toBe("author");
+		await expect(transition.finished).resolves.toBeUndefined();
+		expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+		root.style.removeProperty("view-transition-name");
+	});
+
+	it("injects interaction styles by default and can opt out", async () => {
+		installDocumentTransition((argument) =>
+			createNativeTransition(updateFrom(argument)),
+		);
+		const selector = "#html-box-view-transition-interactive";
+
+		const first = ViewTransition.start(() => undefined);
+
+		expect(document.querySelector(selector)?.textContent).toContain(
+			"::view-transition { pointer-events: none; }",
+		);
+		await expect(first.finished).resolves.toBeUndefined();
+
+		const second = ViewTransition.start(() => undefined);
+
+		expect(document.querySelectorAll(selector)).toHaveLength(1);
+		await expect(second.finished).resolves.toBeUndefined();
+
+		document.querySelector(selector)?.remove();
+		const third = ViewTransition.start(() => undefined, {
+			interactive: false,
+		});
+
+		expect(document.querySelector(selector)).toBeNull();
+		await expect(third.finished).resolves.toBeUndefined();
+	});
+
 	it("prefers the native activeViewTransition property", () => {
 		const native = createNativeTransition();
 		install(document, "activeViewTransition", native);
@@ -372,6 +577,20 @@ describe("ViewTransition", () => {
 			ViewTransitionError,
 		);
 		expect(() =>
+			ViewTransition.start(element, document.createElement("div"), 1 as never),
+		).toThrowError(
+			expect.objectContaining({
+				code: ViewTransitionErrorCode.InvalidArgument,
+			}),
+		);
+		expect(() =>
+			ViewTransition.start(element, {} as Element, () => undefined),
+		).toThrowError(
+			expect.objectContaining({
+				code: ViewTransitionErrorCode.InvalidArgument,
+			}),
+		);
+		expect(() =>
 			ViewTransition.start(() => undefined, "options" as never),
 		).toThrowError(ViewTransitionError);
 		expect(() =>
@@ -391,6 +610,22 @@ describe("ViewTransition", () => {
 		expect(() =>
 			ViewTransition.start(() => undefined, {
 				types: ["navigation", ""],
+			}),
+		).toThrowError(
+			expect.objectContaining({
+				code: ViewTransitionErrorCode.InvalidOption,
+			}),
+		);
+		expect(() =>
+			ViewTransition.start(() => undefined, { name: "" }),
+		).toThrowError(
+			expect.objectContaining({
+				code: ViewTransitionErrorCode.InvalidOption,
+			}),
+		);
+		expect(() =>
+			ViewTransition.start(() => undefined, {
+				interactive: "yes" as never,
 			}),
 		).toThrowError(
 			expect.objectContaining({

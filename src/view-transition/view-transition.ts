@@ -1,3 +1,8 @@
+import {
+	applyTransitionName,
+	enableTransitionInteraction,
+	resolveTransitionName,
+} from "./css";
 import { FallbackTransition } from "./fallback-transition";
 import { FallbackReason, type StartTransitionHost } from "./internal-types";
 import { getActiveTransition, setActiveTransition } from "./registry";
@@ -73,6 +78,22 @@ import { wireTransition } from "./wire";
  * Named elements use `view-transition-name`, and transition types scope
  * selectors through `html:active-view-transition-type(...)`.
  *
+ * The first transition type is automatically applied as the CSS
+ * `view-transition-name` of the transition host, so selectors can reuse the
+ * type name. Pass `name` to override it or `name: null` to keep author CSS
+ * names. The previous inline name is restored when the transition finishes.
+ *
+ * For shared-element transitions, pass `from` and `to` elements. The same CSS
+ * name is applied to `from` before the old state is captured and to `to` after
+ * the update callback runs, so both snapshots match. Both arguments must be
+ * `Element` instances; `to` may be detached or hidden before the update and
+ * must be inserted by the callback.
+ *
+ * By default the page stays interactive while the animation runs: the wrapper
+ * adds `::view-transition { pointer-events: none; }` so pointer input reaches
+ * the app instead of the transition overlay. Set `interactive: false` when the
+ * page CSS already handles this.
+ *
  * @example
  * ```ts
  * // Document scope.
@@ -87,6 +108,9 @@ import { wireTransition } from "./wire";
  *
  * // Element scope (browser support permitting).
  * ViewTransition.start(element, () => renderElement());
+ *
+ * // Shared element: name "card" is applied to both sides.
+ * ViewTransition.start(fromCard, toCard, update, { types: ["card"] });
  *
  * ViewTransition.supported();
  * ViewTransition.supported(element);
@@ -133,11 +157,33 @@ export class ViewTransition {
 	): NativeViewTransition;
 
 	/**
+	 * Starts a transition between two elements that share a CSS name.
+	 *
+	 * The resolved name is applied to `from` before the old state is captured
+	 * and to `to` after the update callback completes, so the browser can match
+	 * both snapshots. This variant uses document scope.
+	 *
+	 * @param from - Element that represents the old state.
+	 * @param to - Element that represents the new state.
+	 * @param update - DOM update callback.
+	 * @param options - Transition options.
+	 * @returns The native transition, or a transition-shaped fallback when no
+	 * animation can run.
+	 */
+	static start(
+		from: Element,
+		to: Element,
+		update: UpdateCallback,
+		options?: ViewTransitionOptions,
+	): NativeViewTransition;
+
+	/**
 	 * Starts a view transition.
 	 *
-	 * @param first - Update callback, or the element for a scoped transition.
-	 * @param second - Options, or the update callback for a scoped transition.
-	 * @param third - Options for a scoped transition.
+	 * @param first - Update callback, source element, or scoped element.
+	 * @param second - Options, destination element, or update callback.
+	 * @param third - Update callback or options.
+	 * @param fourth - Options for the `from`/`to` form.
 	 * @returns The native transition or a fallback.
 	 * @throws {ViewTransitionError} If the arguments or options are invalid.
 	 */
@@ -145,8 +191,11 @@ export class ViewTransition {
 		first: unknown,
 		second?: unknown,
 		third?: unknown,
+		fourth?: unknown,
 	): NativeViewTransition {
 		let host: Element | null = null;
+		let from: Element | null = null;
+		let to: Element | null = null;
 		let update: UpdateCallback;
 		let rawOptions: unknown;
 
@@ -154,19 +203,31 @@ export class ViewTransition {
 			update = first as UpdateCallback;
 			rawOptions = second;
 		} else if (isElement(first)) {
-			if (typeof second !== "function") {
+			if (isElement(second)) {
+				if (typeof third !== "function") {
+					throw new ViewTransitionError(
+						ViewTransitionErrorCode.InvalidArgument,
+						"start(from, to, update): `update` must be a function.",
+					);
+				}
+				from = first;
+				to = second;
+				update = third as UpdateCallback;
+				rawOptions = fourth;
+			} else if (typeof second === "function") {
+				host = first;
+				update = second as UpdateCallback;
+				rawOptions = third;
+			} else {
 				throw new ViewTransitionError(
 					ViewTransitionErrorCode.InvalidArgument,
-					"start(element, update): `update` must be a function.",
+					"start(element, update) or start(from, to, update): the second argument must be an Element or a function.",
 				);
 			}
-			host = first;
-			update = second as UpdateCallback;
-			rawOptions = third;
 		} else {
 			throw new ViewTransitionError(
 				ViewTransitionErrorCode.InvalidArgument,
-				"start() expects (update) or (element, update): the first argument must be a function or an Element.",
+				"start() expects (update), (element, update), or (from, to, update): the first argument must be a function or an Element.",
 			);
 		}
 
@@ -194,17 +255,60 @@ export class ViewTransition {
 		let transition: NativeViewTransition | undefined;
 		let synthetic = false;
 		let initialError: { error: unknown } | undefined;
+		let restoreFromName: (() => void) | undefined;
+		let restoreToName: (() => void) | undefined;
+		let preparedUpdate: UpdateCallback = update;
+
+		const cleanupNames = (): void => {
+			restoreToName?.();
+			restoreFromName?.();
+			restoreToName = undefined;
+			restoreFromName = undefined;
+		};
 
 		if (reason === null) {
+			if (options.interactive !== false) enableTransitionInteraction();
+
+			const cssName = resolveTransitionName(options.name, types);
+			const source = from;
+			const destination = to;
+
+			if (cssName && source && destination) {
+				if (source === destination) {
+					restoreFromName = applyTransitionName(source, cssName);
+				} else {
+					restoreFromName = applyTransitionName(source, cssName);
+					preparedUpdate = async () => {
+						await update();
+						// The old snapshot is already captured. Move the name to
+						// the new element before the browser captures the new one.
+						restoreFromName?.();
+						restoreFromName = undefined;
+						restoreToName = applyTransitionName(destination, cssName);
+					};
+				}
+			} else if (cssName) {
+				const nameHost =
+					host ??
+					(typeof document !== "undefined" ? document.documentElement : null);
+				if (nameHost) {
+					restoreFromName = applyTransitionName(nameHost, cssName);
+				}
+			}
+
 			try {
 				const target = (host ?? document) as unknown as StartTransitionHost;
 				const native =
 					types.length > 0 && supportsTransitionTypes()
-						? target.startViewTransition({ update, types })
-						: target.startViewTransition(update);
+						? target.startViewTransition({
+								update: preparedUpdate,
+								types,
+							})
+						: target.startViewTransition(preparedUpdate);
 				transition = native as NativeViewTransition;
 			} catch (error) {
 				// If the browser fails to start, the update must still run.
+				cleanupNames();
 				reason = FallbackReason.BrowserStartFailure;
 				initialError = { error };
 			}
@@ -220,7 +324,14 @@ export class ViewTransition {
 		}
 
 		setActiveTransition(key, transition);
-		wireTransition(transition, key, options, synthetic, initialError);
+		wireTransition(
+			transition,
+			key,
+			options,
+			synthetic,
+			initialError,
+			cleanupNames,
+		);
 		return transition;
 	}
 

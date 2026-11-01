@@ -14,6 +14,7 @@ import { isAbortError, reportUncaught, safely } from "./utils";
  * @param options - Validated public options.
  * @param synthetic - Whether the transition is a fallback.
  * @param initialError - Error captured while starting the native transition.
+ * @param cleanup - Extra cleanup to run when the transition settles.
  * @internal
  */
 export function wireTransition(
@@ -22,6 +23,7 @@ export function wireTransition(
 	options: ViewTransitionOptions,
 	synthetic: boolean,
 	initialError?: InitialTransitionError,
+	cleanup?: () => void,
 ): void {
 	let failed = false;
 
@@ -33,7 +35,8 @@ export function wireTransition(
 		else reportUncaught(error);
 	};
 
-	const clear = (): void => {
+	const settle = (): void => {
+		cleanup?.();
 		clearActiveTransition(key, transition);
 	};
 
@@ -52,12 +55,12 @@ export function wireTransition(
 
 	transition.finished.then(
 		() => {
-			clear();
+			settle();
 			safely(options.onFinish);
 			return undefined;
 		},
 		(error) => {
-			clear();
+			settle();
 			fail(error);
 			return undefined;
 		},

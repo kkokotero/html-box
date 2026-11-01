@@ -62,5 +62,24 @@ export function validateOptions(options: unknown): ViewTransitionOptions {
 			'Option `reducedMotion` must be "respect" or "ignore".',
 		);
 	}
+	if (
+		value.name !== undefined &&
+		value.name !== null &&
+		(typeof value.name !== "string" || value.name === "")
+	) {
+		throw new ViewTransitionError(
+			ViewTransitionErrorCode.InvalidOption,
+			"Option `name` must be a non-empty string or null.",
+		);
+	}
+	if (
+		value.interactive !== undefined &&
+		typeof value.interactive !== "boolean"
+	) {
+		throw new ViewTransitionError(
+			ViewTransitionErrorCode.InvalidOption,
+			"Option `interactive` must be a boolean.",
+		);
+	}
 	return value;
 }
