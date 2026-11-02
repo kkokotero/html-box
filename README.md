@@ -32,6 +32,7 @@ npm install html-box
 | `html-box/viewport`        | Read and observe element geometry                |
 | `html-box/scheduler`       | Schedule, repeat, and cancel work                |
 | `html-box/view-transition` | Animate DOM updates with the View Transition API |
+| `html-box/browser`         | Read device, screen, and network information     |
 
 ## Quick start
 
@@ -171,6 +172,22 @@ const viewport = new Viewport(panel);
 viewport.on("resize", ({ size }) => console.log(size));
 viewport.on("move", ({ position }) => console.log(position));
 viewport.close();
+```
+
+## Browser capabilities
+
+`Browser.device`, `Browser.screen`, and `Browser.network` expose live device, display, and connection information. Their event listeners attach browser resources only while subscribed. `Browser.open()` creates a window handle, and `Browser.channel()` provides typed messaging between same-origin tabs.
+
+```ts
+import { Browser } from "html-box/browser";
+
+const isOnline = Browser.network.online;
+const device = Browser.device.info;
+const subscription = Browser.screen.on("resize", ({ viewport }) => {
+	console.log(viewport.width, viewport.height);
+});
+
+subscription.cancel();
 ```
 
 ## Scheduling
