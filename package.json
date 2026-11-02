@@ -38,56 +38,56 @@
 	"sideEffects": false,
 	"exports": {
 		"./query": {
-			"types": "./dist/query.d.ts",
-			"default": "./dist/query.js"
+			"types": "./dist/query/index.d.ts",
+			"default": "./dist/query/index.js"
 		},
 		"./interaction": {
-			"types": "./dist/interaction.d.ts",
-			"default": "./dist/interaction.js"
+			"types": "./dist/interaction/index.d.ts",
+			"default": "./dist/interaction/index.js"
 		},
 		"./pointer": {
-			"types": "./dist/pointer.d.ts",
-			"default": "./dist/pointer.js"
+			"types": "./dist/pointer/index.d.ts",
+			"default": "./dist/pointer/index.js"
 		},
 		"./html": {
-			"types": "./dist/html.d.ts",
-			"default": "./dist/html.js"
+			"types": "./dist/html/index.d.ts",
+			"default": "./dist/html/index.js"
 		},
 		"./safe-zone": {
-			"types": "./dist/safe-zone.d.ts",
-			"default": "./dist/safe-zone.js"
+			"types": "./dist/safe-zone/index.d.ts",
+			"default": "./dist/safe-zone/index.js"
 		},
 		"./viewport": {
-			"types": "./dist/viewport.d.ts",
-			"default": "./dist/viewport.js"
+			"types": "./dist/viewport/index.d.ts",
+			"default": "./dist/viewport/index.js"
 		},
 		"./keyboard": {
-			"types": "./dist/keyboard.d.ts",
-			"default": "./dist/keyboard.js"
+			"types": "./dist/keyboard/index.d.ts",
+			"default": "./dist/keyboard/index.js"
 		},
 		"./scheduler": {
 			"types": "./dist/scheduler.d.ts",
 			"default": "./dist/scheduler.js"
 		},
 		"./element": {
-			"types": "./dist/element.d.ts",
-			"default": "./dist/element.js"
+			"types": "./dist/element/index.d.ts",
+			"default": "./dist/element/index.js"
 		},
 		"./form": {
-			"types": "./dist/form.d.ts",
-			"default": "./dist/form.js"
+			"types": "./dist/form/index.d.ts",
+			"default": "./dist/form/index.js"
 		},
 		"./view-transition": {
-			"types": "./dist/view-transition.d.ts",
-			"default": "./dist/view-transition.js"
+			"types": "./dist/view-transition/index.d.ts",
+			"default": "./dist/view-transition/index.js"
 		},
 		"./reactive": {
-			"types": "./dist/reactive.d.ts",
-			"default": "./dist/reactive.js"
+			"types": "./dist/reactive/index.d.ts",
+			"default": "./dist/reactive/index.js"
 		},
 		"./browser": {
-			"types": "./dist/browser.d.ts",
-			"default": "./dist/browser.js"
+			"types": "./dist/browser/index.d.ts",
+			"default": "./dist/browser/index.js"
 		}
 	},
 	"publishConfig": {
