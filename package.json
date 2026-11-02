@@ -1,6 +1,6 @@
 {
 	"name": "html-box",
-	"version": "0.1.0",
+	"version": "0.3.3",
 	"private": false,
 	"description": "Expressive JavaScript and TypeScript utilities for working with the DOM",
 	"keywords": [
