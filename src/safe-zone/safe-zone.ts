@@ -83,6 +83,8 @@ export class SafeZone {
 	private cancelFrame: SafeZoneDisposer | null = null;
 	private detachListeners: SafeZoneDisposer = NOOP;
 	private resizeObserver: ResizeObserver | null = null;
+	private mutationObserver: MutationObserver | null = null;
+	private attributeObserver: MutationObserver | null = null;
 	private detachSignal: SafeZoneDisposer = NOOP;
 
 	private geometry: ZoneGeometry | null = null;
@@ -206,6 +208,7 @@ export class SafeZone {
 			this.elements.add(element);
 			this.resizeObserver?.observe(element);
 		}
+		this.refreshAttributeObserver();
 		this.invalidate();
 		return this;
 	}
@@ -217,6 +220,7 @@ export class SafeZone {
 			if (this.elements.delete(element))
 				this.resizeObserver?.unobserve(element);
 		}
+		this.refreshAttributeObserver();
 		this.invalidate();
 		return this;
 	}
@@ -470,8 +474,41 @@ export class SafeZone {
 			for (const element of this.elements) this.resizeObserver.observe(element);
 			if (isElement(this.source)) this.resizeObserver.observe(this.source);
 		}
+		if (typeof MutationObserver !== "undefined" && document.documentElement) {
+			this.mutationObserver = new MutationObserver((records) => {
+				this.invalidate();
+				if (records.some((record) => record.type === "childList"))
+					this.refreshAttributeObserver();
+			});
+			this.mutationObserver.observe(document.documentElement, {
+				childList: true,
+				subtree: true,
+			});
+			this.attributeObserver = new MutationObserver(this.invalidate);
+			this.refreshAttributeObserver();
+		}
 		this.geometryDirty = true;
 		this.schedule();
+	}
+
+	private refreshAttributeObserver(): void {
+		if (!this.attributeObserver) return;
+		this.attributeObserver.disconnect();
+		const ancestors = new Set<Element>();
+		const addAncestors = (element: Element): void => {
+			let ancestor: Element | null = element;
+			while (ancestor) {
+				ancestors.add(ancestor);
+				ancestor = ancestor.parentElement;
+			}
+		};
+		for (const element of this.elements) addAncestors(element);
+		if (isElement(this.source)) addAncestors(this.source);
+		for (const ancestor of ancestors)
+			this.attributeObserver.observe(ancestor, {
+				attributes: true,
+				attributeFilter: ["class", "style", "hidden"],
+			});
 	}
 
 	private stop(preserveState = false): void {
@@ -480,6 +517,10 @@ export class SafeZone {
 		this.detachListeners = NOOP;
 		this.resizeObserver?.disconnect();
 		this.resizeObserver = null;
+		this.mutationObserver?.disconnect();
+		this.mutationObserver = null;
+		this.attributeObserver?.disconnect();
+		this.attributeObserver = null;
 		this.cancelFrame?.();
 		this.cancelFrame = null;
 		this.pending?.cancel();

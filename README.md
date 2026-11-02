@@ -150,7 +150,7 @@ pointer.close();
 
 ## Geometry
 
-`SafeZone` watches whether a pointer, element, or custom point is inside one or more target elements. It supports padding, delayed transitions, and optional SVG visualization. `update()` forces an immediate measurement.
+`SafeZone` watches whether a pointer, element, or custom point is inside one or more target elements. It supports padding, delayed transitions, and optional SVG visualization. The zone refreshes when targets are added, removed, or reparented, and when a target or one of its ancestors changes class, style, or visibility. `update()` forces an immediate measurement; use `poll: true` for continuous movement such as CSS animations or transforms that do not produce observed DOM changes.
 
 ```ts
 import { SafeZone } from "html-box/safe-zone";
