@@ -22,6 +22,10 @@ function setRect(
 	} as DOMRect);
 }
 
+function nextFrame(): Promise<void> {
+	return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 afterEach(() => {
 	vi.useRealTimers();
 	vi.restoreAllMocks();
@@ -300,6 +304,41 @@ describe("SafeZone", () => {
 		).not.toBeNull();
 		zone.close();
 		expect(container.querySelector("svg[data-safezone-overlay]")).toBeNull();
+	});
+
+	it("updates the overlay when a target moves or is removed from the DOM", async () => {
+		const target = document.createElement("div");
+		document.body.append(target);
+		let left = 0;
+		vi.spyOn(target, "getBoundingClientRect").mockImplementation(
+			() =>
+				({
+					x: left,
+					y: 0,
+					left,
+					top: 0,
+					right: left + 10,
+					bottom: 10,
+					width: 10,
+					height: 10,
+					toJSON: () => ({}),
+				}) as DOMRect,
+		);
+		const zone = new SafeZone("pointer", target, { visualize: true });
+		const path = document.querySelector("svg[data-safezone-overlay] path")!;
+
+		await nextFrame();
+		expect(path.getAttribute("d")).toContain("M0 0");
+
+		left = 20;
+		target.style.left = "20px";
+		await nextFrame();
+		expect(path.getAttribute("d")).toContain("M20 0");
+
+		target.remove();
+		await nextFrame();
+		expect(path.getAttribute("d")).toBe("");
+		zone.close();
 	});
 
 	it("rejects invalid sources, targets, option values, and closed operations", () => {
