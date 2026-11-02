@@ -84,6 +84,10 @@
 		"./reactive": {
 			"types": "./dist/reactive.d.ts",
 			"default": "./dist/reactive.js"
+		},
+		"./browser": {
+			"types": "./dist/browser.d.ts",
+			"default": "./dist/browser.js"
 		}
 	},
 	"publishConfig": {

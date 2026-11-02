@@ -14,6 +14,7 @@ export default defineConfig({
 		form: "src/form/index.ts",
 		"view-transition": "src/view-transition/index.ts",
 		reactive: "src/reactive/index.ts",
+		browser: "src/browser/index.ts",
 	},
 	target: "esnext",
 	format: ["esm"],
